@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Edems10/coffee-contracts/crawl.finished.v1.json",
+  "title": "crawl.finished",
+  "description": "What one crawl of one shop did. Not compacted: the history is the point.",
+  "type": "object",
+  "required": ["type", "site", "started_at", "finished_at"],
+  "additionalProperties": true,
+  "properties": {
+    "type": { "const": "crawl.finished" },
+    "site": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "discovered": { "type": "integer", "minimum": 0 },
+    "written": { "type": "integer", "minimum": 0 },
+    "failed": { "type": "integer", "minimum": 0 },
+    "complete": {
+      "type": "boolean",
+      "description": "Whether the whole catalogue was seen. A consumer may only treat what it did not hear about as gone when this is true."
+    },
+    "errors": { "type": "array", "items": { "type": "string" } }
+  }
+}

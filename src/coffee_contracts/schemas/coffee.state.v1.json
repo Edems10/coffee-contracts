@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Edems10/coffee-contracts/coffee.state.v1.json",
+  "title": "coffee.state",
+  "description": "One coffee, whole, as the catalogue last saw it. Carried in full so that no consumer has to call the producer back.",
+  "type": "object",
+  "required": ["type", "site", "external_id", "observed_at"],
+  "additionalProperties": true,
+  "properties": {
+    "type": { "const": "coffee.state" },
+    "site": { "type": "string", "minLength": 1 },
+    "external_id": { "type": "string", "minLength": 1 },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "name": { "type": ["string", "null"] },
+    "url": { "type": ["string", "null"] },
+    "roaster": { "type": ["string", "null"] },
+    "origin_country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
+    "origin_region": { "type": ["string", "null"] },
+    "process_method": { "type": ["string", "null"] },
+    "roast_level": { "type": ["string", "null"] },
+    "roast_profile": { "type": ["string", "null"] },
+    "variety": { "type": "array", "items": { "type": "string" } },
+    "altitude_min_m": { "type": ["integer", "null"] },
+    "flavor_notes": { "type": "array", "items": { "type": "string" } },
+    "tasting_text": { "type": ["string", "null"] },
+    "sca_score": { "type": ["number", "null"] },
+    "weight_g": { "type": ["integer", "null"] },
+    "price": { "type": ["number", "null"] },
+    "currency": { "type": ["string", "null"] },
+    "price_per_kg_eur": { "type": ["number", "null"] },
+    "available": { "type": ["boolean", "null"] },
+    "delisted_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Set once the shop stopped listing it. A delisting is a state rather than a deleted message, so it survives the stream's per-subject compaction."
+    }
+  }
+}

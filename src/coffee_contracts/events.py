@@ -1,0 +1,173 @@
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Any
+
+#: The event a coffee's state is carried in, and the one a crawl's result is.
+#: Both are part of the contract: a consumer switches on this, not on the
+#: subject, because a subject is routing and a type is meaning.
+COFFEE_STATE = "coffee.state"
+CRAWL_FINISHED = "crawl.finished"
+
+
+@dataclass(frozen=True, slots=True)
+class CoffeeState:
+    """One coffee, whole, as the catalogue last saw it.
+
+    The event carries the state rather than a pointer to it. A consumer that
+    had to call back for the detail would be synchronously coupled to the
+    producer, which is the thing this architecture exists to avoid.
+
+    Attributes:
+        site: The shop's registry id.
+        external_id: The shop's own id for the product.
+        observed_at: When the crawl that produced this saw it.
+        name: The product name as the shop prints it.
+        url: Where to buy it.
+        roaster: Who roasted it, when the shop says.
+        origin_country: ISO 3166 alpha-2, or None for a blend.
+        origin_region: The growing region, free text.
+        process_method: The processing method, as the catalogue's enum names it.
+        roast_level: light .. dark, or ``"unknown"``.
+        roast_profile: espresso, filter or omni, or ``"unknown"``.
+        variety: Cultivars, as the shop lists them.
+        altitude_min_m: The lower end of the stated altitude.
+        flavor_notes: Cup notes, as the shop wrote them.
+        tasting_text: The shop's prose description of the cup.
+        sca_score: The cupping score, when published.
+        weight_g: The net weight the price buys.
+        price: The price of that package.
+        currency: The ISO code the shop prices in.
+        price_per_kg_eur: The comparable price.
+        available: Whether the shop says it is in stock.
+        delisted_at: When the shop stopped listing it; None while it is sold.
+    """
+
+    site: str
+    external_id: str
+    observed_at: datetime
+    name: str | None = None
+    url: str | None = None
+    roaster: str | None = None
+    origin_country: str | None = None
+    origin_region: str | None = None
+    process_method: str | None = None
+    roast_level: str | None = None
+    roast_profile: str | None = None
+    variety: list[str] = field(default_factory=list)
+    altitude_min_m: int | None = None
+    flavor_notes: list[str] = field(default_factory=list)
+    tasting_text: str | None = None
+    sca_score: float | None = None
+    weight_g: int | None = None
+    price: float | None = None
+    currency: str | None = None
+    price_per_kg_eur: float | None = None
+    available: bool | None = None
+    delisted_at: datetime | None = None
+
+    @property
+    def key(self) -> str:
+        """The catalogue-wide identifier of this coffee.
+
+        Returns:
+            ``site/external_id``.
+        """
+        return f"{self.site}/{self.external_id}"
+
+    @property
+    def is_delisted(self) -> bool:
+        """Whether the shop has stopped selling this.
+
+        A delisting is a state, not a deleted message, so that it survives the
+        stream's per-subject compaction like every other fact about the coffee.
+
+        Returns:
+            True once the catalogue recorded it as gone.
+        """
+        return self.delisted_at is not None
+
+
+@dataclass(frozen=True, slots=True)
+class CrawlFinished:
+    """What one crawl of one shop did.
+
+    Attributes:
+        site: The shop's registry id.
+        started_at: When the crawl of this shop began.
+        finished_at: When it ended.
+        discovered: Product references the listings yielded.
+        written: Products that reached the catalogue.
+        failed: Pages that could not be fetched or parsed.
+        complete: Whether the whole catalogue was seen, so the rest may be
+            treated as gone.
+        errors: One line per problem, as the crawl recorded it.
+    """
+
+    site: str
+    started_at: datetime
+    finished_at: datetime
+    discovered: int = 0
+    written: int = 0
+    failed: int = 0
+    complete: bool = False
+    errors: list[str] = field(default_factory=list)
+
+
+def to_json(event: CoffeeState | CrawlFinished) -> bytes:
+    """Serialise an event for the wire.
+
+    Args:
+        event: The event.
+
+    Returns:
+        Compact UTF-8 JSON, with datetimes as ISO 8601.
+    """
+    payload = asdict(event)
+    payload["type"] = COFFEE_STATE if isinstance(event, CoffeeState) else CRAWL_FINISHED
+    return json.dumps(payload, default=_encode, separators=(",", ":")).encode()
+
+
+def coffee_from_json(raw: bytes | str) -> CoffeeState:
+    """Read a coffee state off the wire.
+
+    Args:
+        raw: The message body.
+
+    Returns:
+        The event.
+    """
+    return _build(CoffeeState, json.loads(raw))
+
+
+def crawl_from_json(raw: bytes | str) -> CrawlFinished:
+    """Read a crawl result off the wire.
+
+    Args:
+        raw: The message body.
+
+    Returns:
+        The event.
+    """
+    return _build(CrawlFinished, json.loads(raw))
+
+
+def _encode(value: object) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    message = f"{type(value).__name__} is not part of the contract"
+    raise TypeError(message)
+
+
+def _build[T: (CoffeeState, CrawlFinished)](cls: type[T], payload: dict[str, Any]) -> T:
+    # Unknown keys are dropped rather than raising: a producer on a later minor
+    # version of the contract adds fields, and a consumer that refused them
+    # would make every additive change a breaking one.
+    fields = {f.name for f in cls.__dataclass_fields__.values()}
+    known = {k: v for k, v in payload.items() if k in fields}
+    for name in ("observed_at", "started_at", "finished_at", "delisted_at"):
+        if isinstance(known.get(name), str):
+            known[name] = datetime.fromisoformat(known[name])
+    return cls(**known)
