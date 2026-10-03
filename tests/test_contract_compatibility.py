@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from coffee_contracts.events import CoffeeState, CrawlFinished
+from coffee_contracts.events import CoffeeState
 from coffee_contracts.validate import SCHEMA_FILES
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "coffee_contracts" / "schemas"
@@ -17,7 +17,7 @@ SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "coffee_contracts"
 #: either dataclass, so every comparison below ignores it.
 DISCRIMINATOR = "type"
 
-CLASSES = {"coffee.state": CoffeeState, "crawl.finished": CrawlFinished}
+CLASSES = {"coffee.state": CoffeeState}
 
 
 def load(path: Path) -> dict[str, Any]:

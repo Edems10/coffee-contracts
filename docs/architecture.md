@@ -1,8 +1,19 @@
 # How the coffee services fit together
 
-Three independently deployable services and one broker. Nothing shares a
-database and nothing calls anything else at runtime, which is what lets each be
-deployed, scaled and broken on its own.
+**This is the target design, not what runs today.** The broker does not
+exist, there is no outbox and no publisher, and `coffee-cupper` currently reads
+the aggregator's database directly over a shared Docker network — the one thing
+the design below exists to remove. Every thick arrow in the first diagram is
+unbuilt. Read this as the destination and `coffee-aggregator/deploy/` as the
+present.
+
+Once it is built: independently deployable services and one broker, sharing no
+database and calling nothing at runtime, which is what lets each be deployed,
+scaled and broken on its own.
+
+It tolerates the failure of a process or a service. It does **not** tolerate
+the failure of the host: one machine runs the broker, both databases and every
+service, and no amount of durable messaging changes that.
 
 ## The pieces
 
@@ -22,7 +33,6 @@ flowchart LR
     subgraph BROKER["coffee-broker"]
         direction TB
         cat[("CATALOGUE<br/><i>1 msg per coffee</i>")]
-        crw[("CRAWL<br/><i>30 days</i>")]
     end
 
     subgraph CUP["coffee-cupper"]
@@ -40,9 +50,7 @@ flowchart LR
 
     shops(["155 shops"]) -.->|"HTTP, robots.txt"| crawler
     pub ==>|"coffee.v1.catalogue.site.id"| cat
-    pub ==>|"coffee.v1.crawl.site"| crw
     cat ==> consumer
-    crw ==> consumer
     site -->|HTTPS| api
 ```
 
