@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tomllib
 from dataclasses import MISSING, fields
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+import coffee_contracts
 from coffee_contracts.events import CoffeeState
 from coffee_contracts.validate import SCHEMA_FILES
 
@@ -151,3 +153,11 @@ def test_the_schema_is_still_compatible_with_the_released_one(event_type: str) -
 
     newly_required = set(now["required"]) - set(was["required"])
     assert not newly_required, f"{event_type}: {sorted(newly_required)} newly required since {tag}"
+
+
+def test_the_advertised_version_matches_the_distribution() -> None:
+    """`__version__` is exported API, and it is the first thing a consumer reads
+    to find out whether a class it depends on still exists. It was 1.0.0 against
+    a pyproject saying 2.0.0 for exactly one commit, which is one too many."""
+    pyproject = tomllib.loads((SCHEMA_DIR.parents[2] / "pyproject.toml").read_text("utf-8"))
+    assert coffee_contracts.__version__ == pyproject["project"]["version"]

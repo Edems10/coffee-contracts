@@ -10,7 +10,7 @@ from coffee_contracts.streams import CATALOGUE, STREAMS, Stream
 from coffee_contracts.subjects import VERSION, SubjectError, catalogue
 from coffee_contracts.validate import ContractError, check, schema
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "CATALOGUE",

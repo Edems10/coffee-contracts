@@ -70,7 +70,7 @@ Consumers pin a tag, so a contract change never arrives unannounced:
 
 ```toml
 dependencies = [
-    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v1.0.0",
+    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.0.0",
 ]
 ```
 
