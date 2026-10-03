@@ -18,7 +18,6 @@ to it being up — which is the thing this architecture exists to avoid.
 
 ```
 coffee.v1.catalogue.<site>.<external_id>     the coffee's current state
-coffee.v1.crawl.<site>                       what one crawl of one shop did
 ```
 
 **The catalogue stream is compacted: one message per subject.** That makes the
@@ -31,9 +30,10 @@ that a second consumer exists.
 Deleting the message would take the fact that the coffee is gone with it, and
 the next replay would resurrect it.
 
-**The crawl stream is not compacted.** Two runs of one shop are two facts;
-collapsing them would throw away the history that makes a slow regression
-visible. It keeps 30 days.
+**There is no crawl stream.** There was one, and it was dropped: `crawl_run`
+in the aggregator already holds every counter, Loki already holds the log
+lines, and no consumer had a use for either. An arrow into a consumer that
+ignores it is worse than no arrow.
 
 ## Versioning
 
@@ -70,7 +70,7 @@ Consumers pin a tag, so a contract change never arrives unannounced:
 
 ```toml
 dependencies = [
-    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v1.0.0",
+    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.0.0",
 ]
 ```
 

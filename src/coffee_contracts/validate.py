@@ -9,7 +9,6 @@ import jsonschema
 
 SCHEMA_FILES = {
     "coffee.state": "coffee.state.v1.json",
-    "crawl.finished": "crawl.finished.v1.json",
 }
 
 

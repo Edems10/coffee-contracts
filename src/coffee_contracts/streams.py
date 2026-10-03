@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from coffee_contracts.subjects import CATALOGUE_WILDCARD, CRAWL_WILDCARD
-
-#: A month of crawl history. Long enough to see a slow regression, short enough
-#: that the stream does not grow without anyone deciding that it should.
-CRAWL_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+from coffee_contracts.subjects import CATALOGUE_WILDCARD
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,14 +37,4 @@ CATALOGUE = Stream(
     description="Current state of every coffee, one message per coffee.",
 )
 
-#: The crawl log, kept by time rather than compacted: two runs of one shop are
-#: two facts, and collapsing them would throw away the history that makes a
-#: regression visible.
-CRAWL = Stream(
-    name="CRAWL",
-    subjects=(CRAWL_WILDCARD,),
-    max_age_seconds=CRAWL_MAX_AGE_SECONDS,
-    description="What each crawl of each shop did, for the last 30 days.",
-)
-
-STREAMS = (CATALOGUE, CRAWL)
+STREAMS = (CATALOGUE,)

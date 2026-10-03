@@ -5,11 +5,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
-#: The event a coffee's state is carried in, and the one a crawl's result is.
-#: Both are part of the contract: a consumer switches on this, not on the
-#: subject, because a subject is routing and a type is meaning.
+#: The event a coffee's state is carried in. Part of the contract: a consumer
+#: switches on this, not on the subject, because a subject is routing and a
+#: type is meaning.
 COFFEE_STATE = "coffee.state"
-CRAWL_FINISHED = "crawl.finished"
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,33 +89,7 @@ class CoffeeState:
         return self.delisted_at is not None
 
 
-@dataclass(frozen=True, slots=True)
-class CrawlFinished:
-    """What one crawl of one shop did.
-
-    Attributes:
-        site: The shop's registry id.
-        started_at: When the crawl of this shop began.
-        finished_at: When it ended.
-        discovered: Product references the listings yielded.
-        written: Products that reached the catalogue.
-        failed: Pages that could not be fetched or parsed.
-        complete: Whether the whole catalogue was seen, so the rest may be
-            treated as gone.
-        errors: One line per problem, as the crawl recorded it.
-    """
-
-    site: str
-    started_at: datetime
-    finished_at: datetime
-    discovered: int = 0
-    written: int = 0
-    failed: int = 0
-    complete: bool = False
-    errors: list[str] = field(default_factory=list)
-
-
-def to_json(event: CoffeeState | CrawlFinished) -> bytes:
+def to_json(event: CoffeeState) -> bytes:
     """Serialise an event for the wire.
 
     Args:
@@ -126,7 +99,7 @@ def to_json(event: CoffeeState | CrawlFinished) -> bytes:
         Compact UTF-8 JSON, with datetimes as ISO 8601.
     """
     payload = asdict(event)
-    payload["type"] = COFFEE_STATE if isinstance(event, CoffeeState) else CRAWL_FINISHED
+    payload["type"] = COFFEE_STATE
     return json.dumps(payload, default=_encode, separators=(",", ":")).encode()
 
 
@@ -142,18 +115,6 @@ def coffee_from_json(raw: bytes | str) -> CoffeeState:
     return _build(CoffeeState, json.loads(raw))
 
 
-def crawl_from_json(raw: bytes | str) -> CrawlFinished:
-    """Read a crawl result off the wire.
-
-    Args:
-        raw: The message body.
-
-    Returns:
-        The event.
-    """
-    return _build(CrawlFinished, json.loads(raw))
-
-
 def _encode(value: object) -> str:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -161,13 +122,13 @@ def _encode(value: object) -> str:
     raise TypeError(message)
 
 
-def _build[T: (CoffeeState, CrawlFinished)](cls: type[T], payload: dict[str, Any]) -> T:
+def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
     # Unknown keys are dropped rather than raising: a producer on a later minor
     # version of the contract adds fields, and a consumer that refused them
     # would make every additive change a breaking one.
     fields = {f.name for f in cls.__dataclass_fields__.values()}
     known = {k: v for k, v in payload.items() if k in fields}
-    for name in ("observed_at", "started_at", "finished_at", "delisted_at"):
+    for name in ("observed_at", "delisted_at"):
         if isinstance(known.get(name), str):
             known[name] = datetime.fromisoformat(known[name])
     return cls(**known)

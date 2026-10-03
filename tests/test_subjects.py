@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from coffee_contracts import CATALOGUE, CRAWL, SubjectError, catalogue, crawl
+from coffee_contracts import CATALOGUE, SubjectError, catalogue
 
 
 def test_one_subject_per_coffee() -> None:
@@ -11,15 +11,12 @@ def test_one_subject_per_coffee() -> None:
 
 def test_the_catalogue_stream_captures_every_coffee() -> None:
     assert catalogue("kafista", "17133").startswith(CATALOGUE.subjects[0][:-1])
-    assert crawl("kafista").startswith(CRAWL.subjects[0][:-1])
 
 
-def test_the_catalogue_stream_is_compacted_and_the_crawl_log_is_not() -> None:
-    """The stream is the catalogue, so it keeps one message per coffee. Two
-    runs of one shop are two facts, so that stream keeps both."""
+def test_the_catalogue_stream_is_compacted() -> None:
+    """The stream is the catalogue, so it keeps one message per coffee: a
+    consumer that replays it from the start sees each coffee exactly once."""
     assert CATALOGUE.max_msgs_per_subject == 1
-    assert CRAWL.max_msgs_per_subject == 0
-    assert CRAWL.max_age_seconds > 0
 
 
 @pytest.mark.parametrize("bad", ["a.b", "a>b", "a*b", "a b", ""])

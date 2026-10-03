@@ -1,6 +1,6 @@
 [project]
 name = "coffee-contracts"
-version = "1.0.0"
+version = "2.0.0"
 description = "Versioned event contracts shared by the coffee services."
 readme = "README.md"
 requires-python = ">=3.14"

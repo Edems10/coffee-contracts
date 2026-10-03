@@ -16,12 +16,8 @@ VERSION = "v1"
 #: `delisted_at` set, so that fact survives the compaction too.
 CATALOGUE_PREFIX = f"coffee.{VERSION}.catalogue"
 
-#: What one crawl of one shop did. Not compacted — the history is the point.
-CRAWL_PREFIX = f"coffee.{VERSION}.crawl"
-
 #: Everything a stream subscribes to.
 CATALOGUE_WILDCARD = f"{CATALOGUE_PREFIX}.>"
-CRAWL_WILDCARD = f"{CRAWL_PREFIX}.>"
 
 #: NATS splits subjects on dots and treats `*` and `>` as wildcards, so a site
 #: id or a product id carrying any of them would silently widen a subscription.
@@ -58,18 +54,3 @@ def catalogue(site: str, external_id: str) -> str:
     shop = _token(site, field="site")
     product = _token(external_id, field="external_id")
     return f"{CATALOGUE_PREFIX}.{shop}.{product}"
-
-
-def crawl(site: str) -> str:
-    """Return the subject one shop's crawl results are published on.
-
-    Args:
-        site: The shop's registry id.
-
-    Returns:
-        The subject.
-
-    Raises:
-        SubjectError: When the token would change the subject's shape.
-    """
-    return f"{CRAWL_PREFIX}.{_token(site, field='site')}"
