@@ -7,6 +7,7 @@ from dataclasses import MISSING, fields
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
 
 import coffee_contracts
@@ -65,6 +66,15 @@ def test_required_means_the_same_on_both_sides(event_type: str, cls: type) -> No
         f.name for f in fields(cls) if f.default is MISSING and f.default_factory is MISSING
     }
     assert without_default == set(schema["required"]) - {DISCRIMINATOR}
+
+
+@pytest.mark.parametrize("event_type", SCHEMA_FILES)
+def test_every_schema_is_itself_a_valid_schema(event_type: str) -> None:
+    """`check` builds its validator once and keeps it, which is what makes a
+    replay affordable — but it also means nothing re-reads the schema against
+    the metaschema at run time any more. A misspelled keyword would otherwise
+    validate nothing, quietly, in every producer."""
+    jsonschema.Draft202012Validator.check_schema(load(SCHEMA_DIR / SCHEMA_FILES[event_type]))
 
 
 @pytest.mark.parametrize("event_type", SCHEMA_FILES)
