@@ -20,8 +20,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           # The compatibility test reads the schemas as they were at the last
-          # version tag. A shallow checkout has no tags, and the test would
-          # skip itself — green, and checking nothing.
+          # release tag. A shallow checkout has no tags, and the test fails
+          # rather than skipping — a skip exits 0, which is the same as not
+          # having the check at all.
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v5
         with:
