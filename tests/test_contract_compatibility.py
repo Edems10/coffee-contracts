@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tomllib
 from dataclasses import MISSING, fields
@@ -12,9 +13,17 @@ import pytest
 
 import coffee_contracts
 from coffee_contracts.events import CoffeeState
+from coffee_contracts.subjects import VERSION
 from coffee_contracts.validate import SCHEMA_FILES
 
 SCHEMA_DIR = Path(__file__).resolve().parent.parent / "src" / "coffee_contracts" / "schemas"
+
+#: The same directory as ``SCHEMA_DIR``, spelled the way git addresses it.
+SCHEMA_PATH = "src/coffee_contracts/schemas"
+
+#: Every git invocation below runs from here, because a pathspec is
+#: resolved against the working directory rather than the repository root.
+REPO_ROOT = SCHEMA_DIR.parents[2]
 
 #: ``type`` is the discriminator the serialiser writes; it is not a field of
 #: either dataclass, so every comparison below ignores it.
@@ -103,7 +112,7 @@ def released_tag() -> str | None:
         capture_output=True,
         text=True,
         check=False,
-        cwd=SCHEMA_DIR,
+        cwd=REPO_ROOT,
     )
     tags = [line for line in found.stdout.splitlines() if line.startswith("v")]
     return tags[0] if tags else None
@@ -121,16 +130,86 @@ def released_schema(tag: str, name: str) -> dict[str, Any] | None:
         event type is additive and breaks nobody.
     """
     shown = subprocess.run(  # noqa: S603
-        ["git", "show", f"{tag}:src/coffee_contracts/schemas/{name}"],  # noqa: S607
+        ["git", "show", f"{tag}:{SCHEMA_PATH}/{name}"],  # noqa: S607
         capture_output=True,
         text=True,
         check=False,
-        cwd=SCHEMA_DIR,
+        cwd=REPO_ROOT,
     )
     if shown.returncode != 0:
         return None
     parsed: dict[str, Any] = json.loads(shown.stdout)
     return parsed
+
+
+def released_files(tag: str) -> frozenset[str]:
+    """Return the schema file names the contract shipped at a tag.
+
+    The compatibility test below iterates the *current* ``SCHEMA_FILES``, so a
+    deleted event type stops being checked rather than failing. Reading the
+    tag's own listing is the only way to notice something that is no longer
+    there.
+
+    Args:
+        tag: The tag to list.
+
+    Returns:
+        The base names of the JSON schemas present at that tag.
+    """
+    listed = subprocess.run(  # noqa: S603
+        ["git", "ls-tree", "-r", "--name-only", tag, "--", SCHEMA_PATH],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=REPO_ROOT,
+    )
+    if listed.returncode != 0:
+        pytest.fail(f"cannot list the schemas at {tag}: {listed.stderr.strip()}")
+    return frozenset(
+        line.rsplit("/", 1)[-1] for line in listed.stdout.splitlines() if line.endswith(".json")
+    )
+
+
+def released_wire_version(tag: str) -> str | None:
+    """Return the wire ``VERSION`` as it was at a tag.
+
+    Args:
+        tag: The tag to read from.
+
+    Returns:
+        The version string, or None when the tag predates ``subjects.py``.
+    """
+    shown = subprocess.run(  # noqa: S603
+        ["git", "show", f"{tag}:src/coffee_contracts/subjects.py"],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=REPO_ROOT,
+    )
+    if shown.returncode != 0:
+        return None
+    found = re.search(r'^VERSION = "([^"]+)"', shown.stdout, re.MULTILINE)
+    return found.group(1) if found else None
+
+
+def test_no_event_type_disappears_from_the_contract() -> None:
+    """A deleted schema is a consumer switching on a type that stops arriving.
+
+    The per-property test below parametrises over the *current* ``SCHEMA_FILES``,
+    so deleting an entry removes the check along with the contract. That is
+    exactly what happened to ``crawl.finished.v1.json``, and the suite stayed
+    green. Dropping an event type is a major change like any other, so it is
+    refused until the wire ``VERSION`` in ``subjects.py`` says so.
+    """
+    tag = released_tag()
+    if tag is None:
+        pytest.skip("no version tag in this checkout; CI must fetch tags")
+    if released_wire_version(tag) != VERSION:
+        # A new wire version runs beside the old one on its own subject, so the
+        # old consumers keep their event types however this contract is edited.
+        return
+    gone = released_files(tag) - set(SCHEMA_FILES.values())
+    assert not gone, f"{sorted(gone)} dropped from the contract since {tag}"
 
 
 @pytest.mark.parametrize("event_type", SCHEMA_FILES)
@@ -169,5 +248,5 @@ def test_the_advertised_version_matches_the_distribution() -> None:
     """`__version__` is exported API, and it is the first thing a consumer reads
     to find out whether a class it depends on still exists. It was 1.0.0 against
     a pyproject saying 2.0.0 for exactly one commit, which is one too many."""
-    pyproject = tomllib.loads((SCHEMA_DIR.parents[2] / "pyproject.toml").read_text("utf-8"))
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
     assert coffee_contracts.__version__ == pyproject["project"]["version"]
