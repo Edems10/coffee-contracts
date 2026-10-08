@@ -45,6 +45,24 @@ Additive change needs no new version: an unknown field is dropped on read, so a
 producer can add one without waiting for its consumers. Refusing unknown fields
 would make every addition a breaking change.
 
+**What counts as breaking.** Removing a property, dropping a whole event type,
+adding a `required` entry, and *any* change to what a property constrains —
+its `type`, `enum`, `const`, `pattern`, `minLength`, `minimum`, its array
+`items`, however deeply nested.
+
+Both directions count. Narrowing breaks the producers already sending values
+the schema now refuses; loosening breaks the consumers validating against the
+schema they pinned, which is the whole point of pinning one. So making a field
+nullable needs a new version too — the escape hatch is not a looser rule, it is
+`VERSION`, and a new version costs little because both run side by side until
+the last consumer moves.
+
+Annotations are not part of it: `description`, `title`, `default` and
+`examples` may be edited whenever. CI diffs every schema against the newest
+release tag reachable from the branch and refuses all of the above unless
+`VERSION` in `subjects.py` changed. A checkout that cannot see that tag fails
+the build rather than skipping the check.
+
 ## Using it
 
 ```python
