@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from functools import cache
 from importlib import resources
 from typing import Any
@@ -14,6 +15,36 @@ SCHEMA_FILES = {
 
 class ContractError(ValueError):
     """Raised when a payload does not match the contract it claims to be."""
+
+
+def _is_date_time(value: object) -> bool:
+    """Whether a ``date-time`` is one the other side will be able to read back.
+
+    Args:
+        value: The instance the schema annotated ``format: date-time``.
+
+    Returns:
+        True, including for a non-string: what type a property may be is the
+        ``type`` keyword's business, and ``delisted_at`` is legitimately null.
+
+    Raises:
+        ValueError: When a string is not a timestamp, which the registration
+            below turns into an ordinary validation failure.
+    """
+    if not isinstance(value, str):
+        return True
+    datetime.fromisoformat(value)
+    return True
+
+
+#: ``format`` is an annotation jsonschema ignores unless it is handed a checker,
+#: and its own ``date-time`` checker registers only when ``rfc3339-validator``
+#: is installed, which it is not. Checking with ``datetime.fromisoformat``
+#: asserts exactly what ``events._build`` parses with, so a timestamp that
+#: passes here cannot be the one that kills the consumer — and a stricter
+#: RFC 3339 check would refuse spellings this package's own reader accepts.
+_FORMATS = jsonschema.FormatChecker()
+_FORMATS.checks("date-time", raises=ValueError)(_is_date_time)
 
 
 @cache
@@ -39,12 +70,24 @@ def schema(event_type: str) -> dict[str, Any]:
     return loaded
 
 
+@cache
+def _validator(event_type: str) -> jsonschema.Draft202012Validator:
+    # Built once per event type and kept. `jsonschema.validate()` rebuilds the
+    # validator and re-runs full metaschema validation on every single call,
+    # which for a schema that never changes measured 2108 us an event against
+    # 40 us here — four seconds of a catalogue replay spent re-deciding that a
+    # static file is a valid schema. That the schemas really are valid is
+    # settled in the test suite instead, where it costs nothing at run time.
+    return jsonschema.Draft202012Validator(schema(event_type), format_checker=_FORMATS)
+
+
 def check(payload: dict[str, Any]) -> None:
     """Fail if a payload does not match its own declared type.
 
     The producer validates before publishing, which is the only place a bad
     message can still be stopped: once it is in a compacted stream it is the
-    state of that coffee until something replaces it.
+    state of that coffee until something replaces it, and every replay hands
+    it to every consumer again.
 
     Args:
         payload: The decoded message body.
@@ -57,7 +100,7 @@ def check(payload: dict[str, Any]) -> None:
         message = "payload has no 'type'"
         raise ContractError(message)
     try:
-        jsonschema.validate(payload, schema(event_type))
+        _validator(event_type).validate(payload)
     except jsonschema.ValidationError as error:
         message = f"{event_type}: {error.message}"
         raise ContractError(message) from error

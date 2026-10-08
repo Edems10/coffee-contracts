@@ -59,6 +59,11 @@ nats.publish(catalogue(event.site, event.external_id), to_json(event))
 message can be stopped: once it is in a compacted stream, it *is* that coffee's
 state until something replaces it.
 
+`check` enforces `date-time` with the same parser `coffee_from_json` reads
+with, so a timestamp it accepts is one the consumer can parse. It builds its
+validator once per event type, which is what keeps validating a whole replay
+in the tens of milliseconds.
+
 The JSON Schemas under `src/coffee_contracts/schemas/` are the contract. The
 Python dataclasses are a convenience for the two services that happen to be
 written in Python; a consumer in another language reads the schemas and owes
@@ -77,6 +82,30 @@ dependencies = [
 Sharing a schema is not the coupling this architecture avoids. It is consumed
 at build time and versioned; a shared database or a synchronous call at runtime
 would be.
+
+## Releasing
+
+A version that is not tagged is a version nobody can pin, and the pin above is
+the whole of what a consumer installs. So a change to the contract is not done
+when it merges — it is done when the tag exists and the consumers point at it:
+
+1. Bump `version` in `pyproject.toml` and `__version__` in `__init__.py`
+   together. A test fails when they disagree, because `__version__` is the
+   first thing a consumer reads to find out what it got.
+2. Tag the merge commit on `main`, and push the tag:
+
+   ```bash
+   git checkout main && git pull
+   git tag -a v2.0.0 -m "v2.0.0" && git push origin v2.0.0
+   ```
+
+   Never tag a branch. The compatibility test diffs the schemas against the
+   newest tag, so a tag off `main` would hold the contract to something that
+   was never released.
+3. Bump the pin in `coffee-aggregator` and `coffee-cupper` in the same pass.
+   The broker mounts this working tree rather than installing it, so a
+   contract that is only on `main` is one the broker provisions and no
+   consumer has.
 
 ## Development
 
