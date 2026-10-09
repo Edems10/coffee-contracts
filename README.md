@@ -93,7 +93,7 @@ Consumers pin a tag, so a contract change never arrives unannounced:
 
 ```toml
 dependencies = [
-    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.0.0",
+    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.1.0",
 ]
 ```
 
@@ -109,18 +109,22 @@ when it merges — it is done when the tag exists and the consumers point at it:
 
 1. Bump `version` in `pyproject.toml` and `__version__` in `__init__.py`
    together. A test fails when they disagree, because `__version__` is the
-   first thing a consumer reads to find out what it got.
-2. Tag the merge commit on `main`, and push the tag:
+   first thing a consumer reads to find out what it got. Bump the pin in the
+   snippet above too, so the README documents a tag that will exist.
+2. Add the release to [`CHANGELOG.md`](CHANGELOG.md), saying what a consumer
+   has to *do* about it. A tag is the whole of what a consumer installs, so
+   this is the only place they can read what moved between two pins.
+3. Tag the merge commit on `main`, and push the tag:
 
    ```bash
    git checkout main && git pull
-   git tag -a v2.0.0 -m "v2.0.0" && git push origin v2.0.0
+   git tag -a v2.1.0 -m "v2.1.0" && git push origin v2.1.0
    ```
 
    Never tag a branch. The compatibility test diffs the schemas against the
    newest tag, so a tag off `main` would hold the contract to something that
    was never released.
-3. Bump the pin in `coffee-aggregator` and `coffee-cupper` in the same pass.
+4. Bump the pin in `coffee-aggregator` and `coffee-cupper` in the same pass.
    The broker mounts this working tree rather than installing it, so a
    contract that is only on `main` is one the broker provisions and no
    consumer has.
