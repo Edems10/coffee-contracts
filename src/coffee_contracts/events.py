@@ -10,6 +10,11 @@ from typing import Any
 #: type is meaning.
 COFFEE_STATE = "coffee.state"
 
+#: The event one coffee's embedding is carried in, switched on the same way as
+#: ``COFFEE_STATE``. Its vector is checked by ``vector.vector_problem``, not by
+#: the schema alone.
+COFFEE_EMBEDDING = "coffee.embedding"
+
 
 @dataclass(frozen=True, slots=True)
 class CoffeeState:

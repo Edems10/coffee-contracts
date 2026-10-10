@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Edems10/coffee-contracts/coffee.embedding.v1.json",
+  "title": "coffee.embedding",
+  "description": "One coffee's embedding, from intfloat/multilingual-e5-base: 768 float32 values, carried as base64 of their raw little-endian bytes (3 072 bytes, which is 4 096 base64 characters). The model, dimension and dtype are the contract. A different model, dimension or dtype is a new wire version, never an edit to this schema. The decoded vector must be exactly dimension times the dtype's size in bytes; a JSON Schema cannot express that, so a consumer checks it.",
+  "type": "object",
+  "required": ["type", "site", "external_id", "model", "dimension", "dtype", "vector"],
+  "additionalProperties": true,
+  "properties": {
+    "type": { "const": "coffee.embedding" },
+    "site": { "type": "string", "minLength": 1 },
+    "external_id": { "type": "string", "minLength": 1 },
+    "model": {
+      "type": "string",
+      "const": "intfloat/multilingual-e5-base",
+      "description": "The model that produced the vector. Vectors from different models are not comparable, so a different model is a new wire version."
+    },
+    "dimension": {
+      "type": "integer",
+      "const": 768,
+      "description": "Number of elements in the vector, fixed by the model."
+    },
+    "dtype": {
+      "type": "string",
+      "const": "float32",
+      "description": "Element type of the vector: IEEE 754 single precision, little-endian."
+    },
+    "vector": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Standard base64 (RFC 4648, padded) of the vector's raw bytes, element after element."
+    }
+  }
+}

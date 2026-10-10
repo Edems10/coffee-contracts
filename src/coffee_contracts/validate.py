@@ -8,8 +8,11 @@ from typing import Any
 
 import jsonschema
 
+from coffee_contracts.vector import vector_problem
+
 SCHEMA_FILES = {
     "coffee.state": "coffee.state.v1.json",
+    "coffee.embedding": "coffee.embedding.v1.json",
 }
 
 
@@ -104,3 +107,10 @@ def check(payload: dict[str, Any]) -> None:
     except jsonschema.ValidationError as error:
         message = f"{event_type}: {error.message}"
         raise ContractError(message) from error
+    # The decoded length of a base64 string is the one rule no schema keyword
+    # carries here, so it is checked once the schema has passed.
+    if event_type == "coffee.embedding":
+        problem = vector_problem(payload)
+        if problem is not None:
+            message = f"{event_type}: {problem}"
+            raise ContractError(message)
