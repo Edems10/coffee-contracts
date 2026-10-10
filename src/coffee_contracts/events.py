@@ -145,6 +145,10 @@ def to_json(event: CoffeeState) -> bytes:
 def coffee_from_json(raw: bytes | str) -> CoffeeState:
     """Read a coffee state off the wire.
 
+    Unknown keys are dropped rather than raising: a producer on a later minor
+    version of the contract adds fields, and a consumer that refused them would
+    make every additive change a breaking one.
+
     Args:
         raw: The message body.
 
@@ -162,9 +166,6 @@ def _encode(value: object) -> str:
 
 
 def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
-    # Unknown keys are dropped rather than raising: a producer on a later minor
-    # version of the contract adds fields, and a consumer that refused them
-    # would make every additive change a breaking one.
     fields = {f.name for f in cls.__dataclass_fields__.values()}
     known = {k: v for k, v in payload.items() if k in fields}
     for name in ("observed_at", "delisted_at", "first_seen_at"):
