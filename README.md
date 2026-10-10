@@ -102,7 +102,7 @@ Consumers pin a tag, so a contract change never arrives unannounced:
 
 ```toml
 dependencies = [
-    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.2.0",
+    "coffee-contracts @ git+https://github.com/Edems10/coffee-contracts@v2.3.0",
 ]
 ```
 
@@ -127,7 +127,7 @@ when it merges — it is done when the tag exists and the consumers point at it:
 
    ```bash
    git checkout main && git pull
-   git tag -a v2.2.0 -m "v2.2.0" && git push origin v2.2.0
+   git tag -a v2.3.0 -m "v2.3.0" && git push origin v2.3.0
    ```
 
    Never tag a branch. The compatibility test diffs the schemas against the
