@@ -19,6 +19,15 @@ CATALOGUE_PREFIX = f"coffee.{VERSION}.catalogue"
 #: Everything a stream subscribes to.
 CATALOGUE_WILDCARD = f"{CATALOGUE_PREFIX}.>"
 
+#: One subject per coffee carrying its current embedding, keyed like the
+#: catalogue so a consumer joins the two on the same ``site.external_id`` pair.
+#: It cannot share the catalogue's prefix: a subject belongs to one stream, and
+#: each stream compacts on its own.
+EMBEDDING_PREFIX = f"coffee.{VERSION}.embedding"
+
+#: Everything the embedding stream subscribes to.
+EMBEDDING_WILDCARD = f"{EMBEDDING_PREFIX}.>"
+
 #: NATS splits subjects on dots and treats `*` and `>` as wildcards, so a site
 #: id or a product id carrying any of them would silently widen a subscription.
 _UNSAFE = re.compile(r"[.*> \t\n]")
@@ -54,3 +63,21 @@ def catalogue(site: str, external_id: str) -> str:
     shop = _token(site, field="site")
     product = _token(external_id, field="external_id")
     return f"{CATALOGUE_PREFIX}.{shop}.{product}"
+
+
+def embedding(site: str, external_id: str) -> str:
+    """Return the subject one coffee's embedding is published on.
+
+    Args:
+        site: The shop's registry id.
+        external_id: The shop's own id for the product.
+
+    Returns:
+        The subject.
+
+    Raises:
+        SubjectError: When either token would change the subject's shape.
+    """
+    shop = _token(site, field="site")
+    product = _token(external_id, field="external_id")
+    return f"{EMBEDDING_PREFIX}.{shop}.{product}"

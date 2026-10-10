@@ -18,6 +18,7 @@ to it being up — which is the thing this architecture exists to avoid.
 
 ```
 coffee.v1.catalogue.<site>.<external_id>     the coffee's current state
+coffee.v1.embedding.<site>.<external_id>     the coffee's current embedding
 ```
 
 **The catalogue stream is compacted: one message per subject.** That makes the
@@ -25,6 +26,14 @@ stream *itself* the catalogue. A consumer that has never run, or that was off
 for a week, replays it from the beginning and ends up with every coffee exactly
 once and nothing twice. No backfill, no export, and the producer never learns
 that a second consumer exists.
+
+**The embedding stream is compacted the same way.** `EMBEDDINGS` keeps one vector
+per coffee, and a new vector replaces the old one. A vector is 768 `float32`
+values from `intfloat/multilingual-e5-base`, sent as base64 of their raw
+little-endian bytes: 3 072 bytes, where the same numbers as JSON decimals are
+15–20 kB. The schema states the dimension and dtype. A consumer checks that the
+decoded vector is `dimension` times the dtype's size, since a truncated base64
+string still decodes; `vector.vector_problem` is that check.
 
 **A delisting is a state, not a deleted message.** `delisted_at` is a field.
 Deleting the message would take the fact that the coffee is gone with it, and

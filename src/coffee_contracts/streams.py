@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from coffee_contracts.subjects import CATALOGUE_WILDCARD
+from coffee_contracts.subjects import CATALOGUE_WILDCARD, EMBEDDING_WILDCARD
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,4 +37,14 @@ CATALOGUE = Stream(
     description="Current state of every coffee, one message per coffee.",
 )
 
-STREAMS = (CATALOGUE,)
+#: Every coffee's embedding, one vector per coffee. Replaying the stream once
+#: yields each current vector exactly once: a re-embedding replaces the previous
+#: vector rather than joining it, so no consumer ever holds two for one coffee.
+EMBEDDINGS = Stream(
+    name="EMBEDDINGS",
+    subjects=(EMBEDDING_WILDCARD,),
+    max_msgs_per_subject=1,
+    description="Current embedding of every coffee, one vector per coffee.",
+)
+
+STREAMS = (CATALOGUE, EMBEDDINGS)
