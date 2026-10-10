@@ -11,6 +11,11 @@
     "site": { "type": "string", "minLength": 1 },
     "external_id": { "type": "string", "minLength": 1 },
     "observed_at": { "type": "string", "format": "date-time" },
+    "first_seen_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When this catalogue first saw the coffee. It is not when the roaster released it: for a shop added later the two differ by however long the shop had listed the coffee before a crawl reached it, which can be months. So it means new to this catalogue, not new coffee, and a new-arrivals view built on it has to deal with the hazard that follows. Adding a shop gives its whole catalogue the same first_seen_at, so a hundred coffees from one roaster arrive as new at once and fill a new-arrivals view for a week. A shop that changes its product ids does the same, because every row looks new. The contract cannot tell these apart from genuine arrivals, so a consumer must cap a shop's first crawl or ignore it. Absent or null means the producer did not record it, which says nothing about whether the coffee is old or new."
+    },
     "name": { "type": ["string", "null"] },
     "product_kind": {
       "type": ["string", "null"],

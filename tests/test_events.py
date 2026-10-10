@@ -211,3 +211,43 @@ def test_other_is_a_decided_kind_and_passes_validation() -> None:
     """`other` is the escape for a product the producer has judged to be none of
     the named kinds. It is accepted, unlike a string the vocabulary never named."""
     check(json.loads(to_json(a_coffee(product_kind="other"))))
+
+
+def test_a_first_seen_at_survives_the_wire_as_a_datetime() -> None:
+    """The reader parses it the way it parses observed_at. Without that the
+    field would come back as a string its own dataclass type forbids."""
+    first_seen = datetime(2026, 9, 1, 8, 0, tzinfo=UTC)
+    coffee = a_coffee(first_seen_at=first_seen)
+
+    check(json.loads(to_json(coffee)))
+
+    restored = coffee_from_json(to_json(coffee))
+    assert restored == coffee
+    assert restored.first_seen_at == first_seen
+
+
+def test_a_payload_without_first_seen_at_is_still_valid() -> None:
+    """An older producer does not send the field, and that must not be refused."""
+    payload = json.loads(to_json(a_coffee()))
+    del payload["first_seen_at"]
+
+    check(payload)
+
+    assert coffee_from_json(json.dumps(payload)).first_seen_at is None
+
+
+def test_a_first_seen_at_of_the_wrong_type_is_refused() -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload["first_seen_at"] = 20260901
+
+    with pytest.raises(ContractError):
+        check(payload)
+
+
+@pytest.mark.parametrize("stamp", ["yesterday", "2026-13-01T00:00:00Z"])
+def test_a_first_seen_at_the_reader_cannot_parse_is_refused(stamp: str) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload["first_seen_at"] = stamp
+
+    with pytest.raises(ContractError, match="date-time"):
+        check(payload)
