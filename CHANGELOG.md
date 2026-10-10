@@ -7,6 +7,37 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.2.0
+
+Wire version `v1`, unchanged. This release adds an event type and changes
+nothing that already exists, so a consumer that neither reads embeddings nor
+provisions its streams from `STREAMS` can take it without touching code. Any
+other consumer has to do the steps below.
+
+- New event `coffee.embedding` on the subject
+  `coffee.v1.embedding.<site>.<external_id>`, carried in the new stream
+  `EMBEDDINGS`. The stream keeps one message per coffee: a new vector replaces
+  the old one, so replaying it once yields every current vector exactly once.
+- The vector is 768 `float32` values from `intfloat/multilingual-e5-base`, sent
+  as standard base64 of their raw little-endian bytes. The schema pins `model`,
+  `dimension` and `dtype` as `const`, on purpose: a vector only means something
+  relative to the model that produced it. Moving to a different model, even
+  another 768-dimension one, is a **breaking change**, not a configuration
+  tweak. It is a new wire version, never an edit to this schema, and the
+  `const` makes a swap a visible failure at validation rather than a silent
+  mix of incomparable vectors.
+- A schema cannot say how many bytes a base64 string decodes to, so a consumer
+  must check that the decoded vector is `dimension` times the dtype's size in
+  bytes. `check()` does this for `coffee.embedding` payloads; a consumer that
+  reads `vector` without it gets no guarantee that the vector is whole.
+- `STREAMS` now holds two streams. Anything that creates every entry of
+  `STREAMS` also creates `EMBEDDINGS`; anything that names `CATALOGUE` directly
+  is unaffected.
+- New exports: `COFFEE_EMBEDDING`, `EMBEDDINGS` and `embedding`. Nothing
+  exported in 2.1.0 was removed or renamed.
+- `coffee.state`, its schema, the catalogue subject and `catalogue()` are
+  unchanged.
+
 ## 2.1.0
 
 Wire version `v1`, unchanged. Nothing in the schemas moved; a consumer can take
