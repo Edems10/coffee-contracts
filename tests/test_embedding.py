@@ -9,6 +9,7 @@ import pytest
 from coffee_contracts import COFFEE_EMBEDDING, ContractError, check
 from coffee_contracts.validate import schema
 
+MODEL = "intfloat/multilingual-e5-base"
 DIMENSION = 768
 WIRE_BYTES = DIMENSION * 4
 
@@ -24,6 +25,7 @@ def an_embedding(**overrides: object) -> dict[str, Any]:
         "type": COFFEE_EMBEDDING,
         "site": "kafista",
         "external_id": "17133",
+        "model": MODEL,
         "dimension": DIMENSION,
         "dtype": "float32",
         "vector": base64_of(DIMENSION),
@@ -76,6 +78,21 @@ def test_a_dimension_other_than_the_model_produces_is_refused() -> None:
         check(payload)
 
 
+def test_a_different_model_is_refused() -> None:
+    """Vectors from two models are not comparable: a swap that keeps the dimension
+    must not be read as the same contract, so the schema pins the name."""
+    with pytest.raises(ContractError, match="intfloat/multilingual-e5-base"):
+        check(an_embedding(model="intfloat/multilingual-e5-large"))
+
+
+def test_an_embedding_without_its_model_is_refused() -> None:
+    payload = an_embedding()
+    del payload["model"]
+
+    with pytest.raises(ContractError, match="'model' is a required property"):
+        check(payload)
+
+
 def test_a_dtype_other_than_float32_is_refused() -> None:
     with pytest.raises(ContractError, match="float32"):
         check(an_embedding(dtype="float64"))
@@ -91,12 +108,15 @@ def test_an_embedding_without_its_vector_is_refused() -> None:
 
 def test_a_field_this_version_never_heard_of_is_allowed() -> None:
     """Same rule as ``coffee.state``: a later producer's extra field must still validate."""
-    check(an_embedding(model="intfloat/multilingual-e5-base"))
+    check(an_embedding(norm="l2"))
 
 
-def test_the_schema_states_the_dimension_and_dtype() -> None:
+def test_the_schema_states_the_model_dimension_and_dtype() -> None:
+    """These are what the compatibility suite compares: a const change is a
+    constraint change, and the description is not."""
     properties = schema(COFFEE_EMBEDDING)["properties"]
 
+    assert properties["model"]["const"] == MODEL
     assert properties["dimension"]["const"] == DIMENSION
     assert properties["dtype"]["const"] == "float32"
 

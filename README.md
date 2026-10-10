@@ -31,7 +31,7 @@ that a second consumer exists.
 per coffee, and a new vector replaces the old one. A vector is 768 `float32`
 values from `intfloat/multilingual-e5-base`, sent as base64 of their raw
 little-endian bytes: 3 072 bytes, where the same numbers as JSON decimals are
-15–20 kB. The schema states the dimension and dtype. A consumer checks that the
+15–20 kB. The schema pins the model, dimension and dtype. A consumer checks that the
 decoded vector is `dimension` times the dtype's size, since a truncated base64
 string still decodes; `vector.vector_problem` is that check.
 
