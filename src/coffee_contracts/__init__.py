@@ -12,7 +12,7 @@ from coffee_contracts.streams import CATALOGUE, EMBEDDINGS, STREAMS, Stream
 from coffee_contracts.subjects import VERSION, SubjectError, catalogue, embedding
 from coffee_contracts.validate import ContractError, check, schema
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 __all__ = [
     "CATALOGUE",

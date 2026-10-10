@@ -7,7 +7,7 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
-## Unreleased
+## 2.3.0
 
 Wire version `v1`, unchanged. This adds four optional fields to `coffee.state`
 and changes nothing that already exists, so a consumer that reads none of them
