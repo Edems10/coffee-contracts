@@ -251,3 +251,36 @@ def test_a_first_seen_at_the_reader_cannot_parse_is_refused(stamp: str) -> None:
 
     with pytest.raises(ContractError, match="date-time"):
         check(payload)
+
+
+@pytest.mark.parametrize("value", [True, False, None])
+def test_decaf_keeps_all_three_answers_across_the_wire(value: bool | None) -> None:
+    """True, False and None are three different answers. False must come back
+    as False: a reader that took it for absent would lose the caffeinated
+    coffees a caffeinated-only filter is asking for."""
+    coffee = a_coffee(decaf=value)
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))["decaf"] is value
+    assert coffee_from_json(to_json(coffee)).decaf is value
+
+
+def test_a_payload_without_decaf_is_still_valid() -> None:
+    """An older producer does not send the field, and absence must not be refused
+    or read as a statement about caffeine."""
+    payload = json.loads(to_json(a_coffee()))
+    del payload["decaf"]
+
+    check(payload)
+
+    assert coffee_from_json(json.dumps(payload)).decaf is None
+
+
+@pytest.mark.parametrize("value", ["yes", "false", 1, 0])
+def test_a_decaf_that_is_not_a_boolean_is_refused(value: object) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload["decaf"] = value
+
+    with pytest.raises(ContractError):
+        check(payload)

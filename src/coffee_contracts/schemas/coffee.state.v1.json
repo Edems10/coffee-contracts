@@ -31,6 +31,10 @@
       "type": ["string", "null"],
       "description": "How product_kind was decided, as a sentence. Free text on purpose: it records a method, not a vocabulary."
     },
+    "decaf": {
+      "type": ["boolean", "null"],
+      "description": "Whether the shop says the coffee is decaffeinated. There are three answers, not two. true means the shop says it is decaffeinated. false means the shop says it is caffeinated. Absent or null means the shop said nothing about caffeine. Absence is not false: to filter for caffeinated coffee, select false, not anything that is not true, because that sweeps in every page that was silent. This is the same distinction as product_kind, where absence is not a decision."
+    },
     "url": { "type": ["string", "null"] },
     "roaster": { "type": ["string", "null"] },
     "origin_country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
