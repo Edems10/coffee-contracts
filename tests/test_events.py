@@ -6,13 +6,14 @@ from datetime import UTC, datetime
 import pytest
 
 from coffee_contracts import (
+    PRODUCT_KINDS,
     CoffeeState,
     ContractError,
     check,
     coffee_from_json,
     to_json,
 )
-from coffee_contracts.validate import _validator
+from coffee_contracts.validate import _validator, schema
 
 NOW = datetime(2026, 10, 2, 5, 19, tzinfo=UTC)
 
@@ -151,3 +152,62 @@ def test_an_event_type_this_contract_does_not_have_is_refused() -> None:
     schema lookup raises."""
     with pytest.raises(ContractError, match="no schema for event type"):
         check({"type": "coffee.crawl"})
+
+
+def test_the_product_kinds_are_the_schema_enum() -> None:
+    """The exported vocabulary and the schema's enum are one list, in one order."""
+    enum = schema("coffee.state")["properties"]["product_kind"]["enum"]
+
+    assert list(PRODUCT_KINDS) == [kind for kind in enum if kind is not None]
+
+
+def test_a_product_kind_and_species_split_survive_the_wire() -> None:
+    coffee = a_coffee(
+        product_kind="beans",
+        product_kind_source="the page says Káva v zrnech",
+        arabica_pct=70,
+        robusta_pct=30,
+    )
+
+    check(json.loads(to_json(coffee)))
+
+    assert coffee_from_json(to_json(coffee)) == coffee
+
+
+@pytest.mark.parametrize("kind", ["paper_cup", "Beans", "coffee", ""])
+def test_a_product_kind_outside_the_vocabulary_is_refused(kind: str) -> None:
+    """An unknown kind fails here, because a consumer filtering on it would
+    otherwise drop the rows it does not recognise without saying so."""
+    payload = json.loads(to_json(a_coffee(product_kind=kind)))
+
+    with pytest.raises(ContractError, match="is not one of"):
+        check(payload)
+
+
+def test_an_undecided_product_is_not_refused_when_its_fields_are_absent() -> None:
+    """Absent is what an older producer sends; it must validate, and it must
+    not be read as beans. The reader decides that, not the schema."""
+    payload = json.loads(to_json(a_coffee()))
+    for key in ("product_kind", "product_kind_source", "arabica_pct", "robusta_pct"):
+        del payload[key]
+
+    check(payload)
+
+
+@pytest.mark.parametrize("share", [0, 100, None])
+def test_a_species_share_is_a_whole_percentage_or_nothing(share: int | None) -> None:
+    check(json.loads(to_json(a_coffee(arabica_pct=share, robusta_pct=share))))
+
+
+@pytest.mark.parametrize("share", [-1, 101, 50.5, "50"])
+def test_a_species_share_outside_a_whole_percentage_is_refused(share: object) -> None:
+    payload = json.loads(to_json(a_coffee(arabica_pct=share)))
+
+    with pytest.raises(ContractError):
+        check(payload)
+
+
+def test_other_is_a_decided_kind_and_passes_validation() -> None:
+    """`other` is the escape for a product the producer has judged to be none of
+    the named kinds. It is accepted, unlike a string the vocabulary never named."""
+    check(json.loads(to_json(a_coffee(product_kind="other"))))

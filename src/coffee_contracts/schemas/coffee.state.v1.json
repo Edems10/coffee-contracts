@@ -12,6 +12,20 @@
     "external_id": { "type": "string", "minLength": 1 },
     "observed_at": { "type": "string", "format": "date-time" },
     "name": { "type": ["string", "null"] },
+    "product_kind": {
+      "type": ["string", "null"],
+      "enum": [
+        "beans", "capsules", "instant", "green", "ready_to_drink", "sampler", "kit",
+        "equipment", "merch", "food", "service", "cosmetics", "not_a_product", "other_drink", "test",
+        "other",
+        null
+      ],
+      "description": "What the product is, from the agreed vocabulary. Absent or null means the producer has not decided: that is not beans, and a consumer must not read an undecided product as coffee. other means the producer has decided and the product is none of the named kinds: a decided answer, not a missing one. The list is frozen for this wire version; other is the escape for a kind not yet named, and promoting one to a named kind is a new wire version."
+    },
+    "product_kind_source": {
+      "type": ["string", "null"],
+      "description": "How product_kind was decided, as a sentence. Free text on purpose: it records a method, not a vocabulary."
+    },
     "url": { "type": ["string", "null"] },
     "roaster": { "type": ["string", "null"] },
     "origin_country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
@@ -20,6 +34,18 @@
     "roast_level": { "type": ["string", "null"] },
     "roast_profile": { "type": ["string", "null"] },
     "variety": { "type": "array", "items": { "type": "string" } },
+    "arabica_pct": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Share of arabica the shop states, in percent. Null means the shop stated nothing, which is not the same as 0."
+    },
+    "robusta_pct": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Share of robusta the shop states, in percent. Null means the shop stated nothing, which is not the same as 0."
+    },
     "altitude_min_m": { "type": ["integer", "null"] },
     "flavor_notes": { "type": "array", "items": { "type": "string" } },
     "tasting_text": { "type": ["string", "null"] },

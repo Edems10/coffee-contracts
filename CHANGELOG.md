@@ -7,6 +7,61 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## Unreleased
+
+Wire version `v1`, unchanged. This adds four optional fields to `coffee.state`
+and changes nothing that already exists, so a consumer that reads none of them
+can take it without touching code. A consumer that wants them has to do the
+steps below.
+
+- `product_kind` is an enum of 16 values: 15 named kinds, `beans`, `capsules`,
+  `instant`, `green`, `ready_to_drink`, `sampler`, `kit`, `equipment`, `merch`,
+  `food`, `service`, `cosmetics`, `not_a_product`, `other_drink` and `test`,
+  plus `other`. The same list is exported as `PRODUCT_KINDS`, in the schema's
+  order.
+- `product_kind_source` is a free string that says how the kind was decided.
+- `arabica_pct` and `robusta_pct` are integers from 0 to 100: the species split
+  the shop states.
+
+All four are optional and nullable, and `required` is unchanged. `check`
+refuses a kind outside the list and a percentage outside 0 to 100.
+
+**A missing `product_kind` is not `beans`.** Absent and `null` both mean the
+producer has not decided. A consumer that reads an undecided product as coffee
+goes back to embedding paper cups the first time a shop it has not seen before
+sells one, which is the bug coffee-cupper#26 exists to fix. Absence is not an
+assertion of coffee, and an undecided product is not beans.
+
+**Why `product_kind` is an enum and `product_kind_source` is not.** A kind means
+something only against an agreed vocabulary, so a value outside it fails
+validation rather than passing through as an unknown string. A vocabulary change
+shows up as a validation failure, not as quietly dropped rows. The embedding
+schema pins its `model` for the same reason. The source is free text because it
+records how the decision was made, and that is a sentence.
+
+**Undecided and `other` are different answers.** Absent or `null` means the
+producer has not decided yet. `other` means it has decided, and the product is
+none of the named kinds. Both are "not one of the named kinds" to a filter, but
+only `other` is a decision. Treating them the same throws away the distinction
+the field exists to carry.
+
+The list is frozen for `v1`. Adding a named kind later changes what the
+property constrains, so it needs a new wire version, as any other edit to an
+enum does. `other` exists so that the first product nobody named does not cost
+one. It is a known value, not a free string: an unknown string is still
+refused. Promoting a product from `other` to its own kind later is a wire
+change, and nothing is blocked while it waits.
+
+- `to_json` writes `null` for a field the producer has not decided, as it does
+  for every optional field. The schema accepts absent and `null` alike.
+- `arabica_pct` and `robusta_pct` are the shop's own statement. `null` means the
+  shop said nothing; `0` asserts that the coffee has none of that species.
+- `is_blend` is not part of this release. The aggregator still stores it wrongly
+  for some blends (coffee-aggregator#84), and a field known to be wrong is worse
+  than no field.
+- A consumer that uses none of the four can ignore them all. One that uses the
+  kind alone can ignore `product_kind_source` and both percentages.
+
 ## 2.2.0
 
 Wire version `v1`, unchanged. This release adds an event type and changes

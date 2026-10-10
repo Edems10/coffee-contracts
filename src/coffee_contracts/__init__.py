@@ -3,6 +3,7 @@ from __future__ import annotations
 from coffee_contracts.events import (
     COFFEE_EMBEDDING,
     COFFEE_STATE,
+    PRODUCT_KINDS,
     CoffeeState,
     coffee_from_json,
     to_json,
@@ -18,6 +19,7 @@ __all__ = [
     "COFFEE_EMBEDDING",
     "COFFEE_STATE",
     "EMBEDDINGS",
+    "PRODUCT_KINDS",
     "STREAMS",
     "VERSION",
     "CoffeeState",

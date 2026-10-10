@@ -15,6 +15,30 @@ COFFEE_STATE = "coffee.state"
 #: the schema alone.
 COFFEE_EMBEDDING = "coffee.embedding"
 
+#: The kinds a product may be, in the order ``coffee.state.v1.json`` lists them.
+#: ``other`` is the decided catch-all for a product that is none of the named
+#: kinds, listed last. Absent or null means undecided, which is a different answer.
+#: Part of the contract: a test holds this tuple and the schema's enum to each
+#: other, and ``check`` refuses a kind outside it rather than passing it through.
+PRODUCT_KINDS: tuple[str, ...] = (
+    "beans",
+    "capsules",
+    "instant",
+    "green",
+    "ready_to_drink",
+    "sampler",
+    "kit",
+    "equipment",
+    "merch",
+    "food",
+    "service",
+    "cosmetics",
+    "not_a_product",
+    "other_drink",
+    "test",
+    "other",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class CoffeeState:
@@ -29,6 +53,8 @@ class CoffeeState:
         external_id: The shop's own id for the product.
         observed_at: When the crawl that produced this saw it.
         name: The product name as the shop prints it.
+        product_kind: What the product is, from ``PRODUCT_KINDS``; None while undecided.
+        product_kind_source: How the kind was decided, as a sentence.
         url: Where to buy it.
         roaster: Who roasted it, when the shop says.
         origin_country: ISO 3166 alpha-2, or None for a blend.
@@ -37,6 +63,8 @@ class CoffeeState:
         roast_level: light .. dark, or ``"unknown"``.
         roast_profile: espresso, filter or omni, or ``"unknown"``.
         variety: Cultivars, as the shop lists them.
+        arabica_pct: The arabica share the shop states, 0 to 100; None when it says nothing.
+        robusta_pct: The robusta share the shop states, 0 to 100; None when it says nothing.
         altitude_min_m: The lower end of the stated altitude.
         flavor_notes: Cup notes, as the shop wrote them.
         tasting_text: The shop's prose description of the cup.
@@ -53,6 +81,8 @@ class CoffeeState:
     external_id: str
     observed_at: datetime
     name: str | None = None
+    product_kind: str | None = None
+    product_kind_source: str | None = None
     url: str | None = None
     roaster: str | None = None
     origin_country: str | None = None
@@ -61,6 +91,8 @@ class CoffeeState:
     roast_level: str | None = None
     roast_profile: str | None = None
     variety: list[str] = field(default_factory=list)
+    arabica_pct: int | None = None
+    robusta_pct: int | None = None
     altitude_min_m: int | None = None
     flavor_notes: list[str] = field(default_factory=list)
     tasting_text: str | None = None
