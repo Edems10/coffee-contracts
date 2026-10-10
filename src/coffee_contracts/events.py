@@ -75,6 +75,7 @@ class CoffeeState:
         price_per_kg_eur: The comparable price.
         available: Whether the shop says it is in stock.
         delisted_at: When the shop stopped listing it; None while it is sold.
+        first_seen_at: When this catalogue first saw it, not its release date; None if unrecorded.
     """
 
     site: str
@@ -103,6 +104,7 @@ class CoffeeState:
     price_per_kg_eur: float | None = None
     available: bool | None = None
     delisted_at: datetime | None = None
+    first_seen_at: datetime | None = None
 
     @property
     def key(self) -> str:
@@ -165,7 +167,7 @@ def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
     # would make every additive change a breaking one.
     fields = {f.name for f in cls.__dataclass_fields__.values()}
     known = {k: v for k, v in payload.items() if k in fields}
-    for name in ("observed_at", "delisted_at"):
+    for name in ("observed_at", "delisted_at", "first_seen_at"):
         if isinstance(known.get(name), str):
             known[name] = datetime.fromisoformat(known[name])
     return cls(**known)
