@@ -76,6 +76,7 @@ class CoffeeState:
         available: Whether the shop says it is in stock.
         delisted_at: When the shop stopped listing it; None while it is sold.
         first_seen_at: When this catalogue first saw it, not its release date; None if unrecorded.
+        decaf: True if the shop says decaf, False if caffeinated, None if it said nothing.
     """
 
     site: str
@@ -105,6 +106,7 @@ class CoffeeState:
     available: bool | None = None
     delisted_at: datetime | None = None
     first_seen_at: datetime | None = None
+    decaf: bool | None = None
 
     @property
     def key(self) -> str:
