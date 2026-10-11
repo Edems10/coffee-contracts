@@ -7,6 +7,15 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.4.1
+
+Wire version `v1`, unchanged, and the package code is unchanged. Nothing for a consumer
+to do.
+
+This changes CI only. A pull request now fails unless it moves `version`, adds its entry
+here, and makes the version greater than the one on `main`, so every merged change has a
+number and a line.
+
 ## 2.4.0
 
 Wire version `v1`, unchanged. This adds two optional fields to `coffee.state`
