@@ -7,6 +7,33 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.4.0
+
+Wire version `v1`, unchanged. This adds two optional fields to `coffee.state`
+and changes nothing that already exists, so a consumer that reads neither can
+take it without touching code. A consumer that wants them has to do the steps
+below.
+
+- `first_seen_at` is when this catalogue first saw the coffee, not when the
+  roaster released it. It is a date-time string.
+- `decaf` is whether the shop says the coffee is decaffeinated. It is `true`,
+  `false`, or `null` when the shop said nothing.
+
+Both are optional and nullable, and `required` is unchanged. A missing field
+and a `null` one mean the same thing: the producer has not recorded it.
+
+**Absence is not false.** To select caffeinated coffee, filter for `false`.
+Filtering for "not `true`" also selects every coffee whose shop said nothing.
+
+**`first_seen_at` is not new coffee.** Adding a shop gives its whole catalogue
+the same value at once, and a shop that changes its product ids makes every row
+look new. A new-arrivals view built on it has to cap a shop's first crawl or
+leave that shop out.
+
+**A coffee that does not change keeps the message it was published with.** The
+stream keeps one message per coffee, so until the producer publishes that coffee
+again, its message has neither field.
+
 ## 2.3.0
 
 Wire version `v1`, unchanged. This adds four optional fields to `coffee.state`
