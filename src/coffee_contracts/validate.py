@@ -75,12 +75,25 @@ def schema(event_type: str) -> dict[str, Any]:
 
 @cache
 def _validator(event_type: str) -> jsonschema.Draft202012Validator:
-    # Built once per event type and kept. `jsonschema.validate()` rebuilds the
-    # validator and re-runs full metaschema validation on every single call,
-    # which for a schema that never changes measured 2108 us an event against
-    # 40 us here — four seconds of a catalogue replay spent re-deciding that a
-    # static file is a valid schema. That the schemas really are valid is
-    # settled in the test suite instead, where it costs nothing at run time.
+    """Return the validator for one event type, built once and kept.
+
+    ``jsonschema.validate()`` rebuilds the validator and re-runs full metaschema
+    validation on every single call. For a schema that never changes, that
+    measured 2108 us an event against 40 us here: four seconds of a catalogue
+    replay spent re-deciding that a static file is a valid schema. That the
+    schemas really are valid is settled in the test suite instead, where it
+    costs nothing at run time.
+
+    Args:
+        event_type: The ``type`` field of the payload.
+
+    Returns:
+        A Draft 2020-12 validator for the event type's schema, checking formats
+        with ``_FORMATS``.
+
+    Raises:
+        ContractError: When no such event type is in this contract version.
+    """
     return jsonschema.Draft202012Validator(schema(event_type), format_checker=_FORMATS)
 
 
@@ -91,6 +104,11 @@ def check(payload: dict[str, Any]) -> None:
     message can still be stopped: once it is in a compacted stream it is the
     state of that coffee until something replaces it, and every replay hands
     it to every consumer again.
+
+    An embedding's vector is checked by ``vector.vector_problem`` once the schema
+    has passed. The decoded length of a base64 string is the one rule no schema
+    keyword carries here, and ``vector_problem`` reads the ``dimension``,
+    ``dtype`` and ``vector`` keys that the schema guarantees.
 
     Args:
         payload: The decoded message body.
@@ -107,8 +125,6 @@ def check(payload: dict[str, Any]) -> None:
     except jsonschema.ValidationError as error:
         message = f"{event_type}: {error.message}"
         raise ContractError(message) from error
-    # The decoded length of a base64 string is the one rule no schema keyword
-    # carries here, so it is checked once the schema has passed.
     if event_type == "coffee.embedding":
         problem = vector_problem(payload)
         if problem is not None:
