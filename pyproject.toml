@@ -1,6 +1,6 @@
 [project]
 name = "coffee-contracts"
-version = "2.4.0"
+version = "2.4.1"
 description = "Versioned event contracts shared by the coffee services."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -46,6 +46,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004", "D", "ANN201", "SLF001", "ARG", "FBT", "INP001"]
+".github/**" = ["INP001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
