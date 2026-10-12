@@ -68,6 +68,7 @@
       "type": ["string", "null"],
       "format": "date-time",
       "description": "Set once the shop stopped listing it. A delisting is a state rather than a deleted message, so it survives the stream's per-subject compaction."
-    }
+    },
+    "images": { "type": "array", "items": { "type": "string" } }
   }
 }
