@@ -65,6 +65,33 @@ def test_a_field_this_version_never_heard_of_is_ignored() -> None:
     assert restored.site == "kafista"
 
 
+def test_images_survive_the_wire_in_order() -> None:
+    """The shop's picture URLs keep the order the page lists them in."""
+    coffee = a_coffee(images=["https://a/1.jpg", "https://a/2.jpg"])
+
+    check(json.loads(to_json(coffee)))
+
+    assert coffee_from_json(to_json(coffee)).images == ["https://a/1.jpg", "https://a/2.jpg"]
+
+
+def test_no_images_is_an_empty_list_on_the_wire() -> None:
+    """A shop that published no pictures and a producer that never sent the field
+    read back the same way: an empty list."""
+    restored = coffee_from_json(to_json(a_coffee()))
+
+    assert restored.images == []
+
+
+def test_a_payload_from_before_images_still_reads() -> None:
+    """A payload written before this field existed must still read, with images empty."""
+    payload = json.loads(to_json(a_coffee()))
+    del payload["images"]
+
+    check(payload)
+
+    assert coffee_from_json(json.dumps(payload)).images == []
+
+
 def test_a_valid_payload_passes_its_schema() -> None:
     check(json.loads(to_json(a_coffee())))
 

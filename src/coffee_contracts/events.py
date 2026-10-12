@@ -77,6 +77,8 @@ class CoffeeState:
         delisted_at: When the shop stopped listing it; None while it is sold.
         first_seen_at: When this catalogue first saw it, not its release date; None if unrecorded.
         decaf: True if the shop says decaf, False if caffeinated, None if it said nothing.
+        images: The shop's own picture URLs, in the order the page lists them; empty
+            when it published none.
     """
 
     site: str
@@ -107,6 +109,7 @@ class CoffeeState:
     delisted_at: datetime | None = None
     first_seen_at: datetime | None = None
     decaf: bool | None = None
+    images: list[str] = field(default_factory=list)
 
     @property
     def key(self) -> str:

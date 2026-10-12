@@ -7,6 +7,20 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.4.2 (untagged)
+
+Wire version `v1`, unchanged. This adds one optional field to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read it
+can take it without touching code.
+
+- `images` is the shop's own picture URLs, in the order the page lists them. It
+  is a list of strings, and an empty list when the shop published none. It is
+  the shop's URLs, not copies: nothing here downloads or re-serves a picture.
+
+A missing `images` and an empty one mean the same thing: the producer has not
+recorded any. Untagged, per the release rule: the release that tags this sets
+the semantic version.
+
 ## 2.4.1
 
 Wire version `v1`, unchanged, and the package code is unchanged. Nothing for a consumer
