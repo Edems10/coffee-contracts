@@ -7,6 +7,24 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.5.0
+
+Wire version `v1`, unchanged. This adds one optional field to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read it
+can bump its pin without touching code. A consumer that wants it has to read
+the field below.
+
+This tags the two untagged patches before it. `2.4.1` changed CI only, and
+`2.4.2` added the field. No `v2.4.1` or `v2.4.2` tag will be cut, so `v2.5.0`
+is the first tag that carries either.
+
+- `images` is the shop's own picture URLs, in the order the page lists them. It
+  is a list of strings, and an empty list when the shop published none. It is
+  the shop's URLs, not copies: nothing here downloads or re-serves a picture.
+
+A missing `images` and an empty one mean the same thing: the producer has not
+recorded any.
+
 ## 2.4.2 (untagged)
 
 Wire version `v1`, unchanged. This adds one optional field to `coffee.state`
