@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 #: The event a coffee's state is carried in. Part of the contract: a consumer
@@ -43,6 +43,33 @@ PRODUCT_KINDS: tuple[str, ...] = (
     "test",
     "other",
 )
+
+#: The most points a coffee's ``price_history`` carries. Enforced by
+#: ``coffee.state.v1.json`` as ``maxItems``, so a producer that sends more is
+#: refused by ``check`` rather than trimmed on its behalf.
+MAX_PRICE_HISTORY = 50
+
+
+@dataclass(frozen=True, slots=True)
+class PricePoint:
+    """One change in a coffee's price, not one day of it.
+
+    A point is emitted only where ``(price_per_kg_eur_cents, available)`` differs from
+    the day before, so a coffee priced the same for a year is one point. The
+    last point of a series holds until the coffee's ``observed_at``, which is
+    what tells a price that has not moved since a date apart from a crawl that
+    stopped on that date.
+
+    Attributes:
+        on: The first day these values held.
+        price_per_kg_eur_cents: The comparable price per kilogram from that day, in euro
+            cents, as ``CoffeeState.price_per_kg_eur_cents`` counts it; None when unpriced.
+        available: Whether the shop said it was in stock that day; None when it said nothing.
+    """
+
+    on: date
+    price_per_kg_eur_cents: int | None
+    available: bool | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +113,10 @@ class CoffeeState:
         decaf: True if the shop says decaf, False if caffeinated, None if it said nothing.
         images: The shop's own picture URLs, in the order the page lists them; empty
             when it published none.
+        price_history: The price changes, oldest first, one ``PricePoint`` per change.
+            Capped at ``MAX_PRICE_HISTORY`` points, oldest dropped first. The cap
+            loses no fact about when the coffee started, which ``first_seen_at`` keeps.
+            Empty when the producer recorded no series.
     """
 
     site: str
@@ -117,6 +148,7 @@ class CoffeeState:
     first_seen_at: datetime | None = None
     decaf: bool | None = None
     images: list[str] = field(default_factory=list)
+    price_history: list[PricePoint] = field(default_factory=list)
 
     @property
     def key(self) -> str:
@@ -177,7 +209,21 @@ def coffee_from_json(raw: bytes | str) -> CoffeeState:
 
 
 def _encode(value: object) -> str:
-    if isinstance(value, datetime):
+    """Return the wire text of a value the ``json`` module cannot write itself.
+
+    Datetimes and dates are ISO 8601, so ``date`` is written the way ``datetime``
+    already is.
+
+    Args:
+        value: The object ``json.dumps`` could not serialise.
+
+    Returns:
+        The string that goes on the wire in its place.
+
+    Raises:
+        TypeError: When the value is not one the contract carries.
+    """
+    if isinstance(value, datetime | date):
         return value.isoformat()
     message = f"{type(value).__name__} is not part of the contract"
     raise TypeError(message)
@@ -194,4 +240,30 @@ def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
         if value is not None and type(value) is not int:
             message = f"{name} must be a whole number of minor units, got {value!r}"
             raise ValueError(message)
+    if "price_history" in known:
+        known["price_history"] = [_point(item) for item in known["price_history"]]
     return cls(**known)
+
+
+def _point(payload: dict[str, Any]) -> PricePoint:
+    """Build one ``PricePoint`` off the wire, refusing a float price as ``_build`` does.
+
+    Args:
+        payload: One element of ``price_history``, as the JSON decoded it.
+
+    Returns:
+        The point, with ``on`` as a ``date``.
+
+    Raises:
+        ValueError: When ``price_per_kg_eur_cents`` is not a whole number, or the
+            date cannot be parsed.
+    """
+    cents = payload["price_per_kg_eur_cents"]
+    if cents is not None and type(cents) is not int:
+        message = f"price_per_kg_eur_cents must be a whole number of cents, got {cents!r}"
+        raise ValueError(message)
+    return PricePoint(
+        on=date.fromisoformat(payload["on"]),
+        price_per_kg_eur_cents=cents,
+        available=payload["available"],
+    )

@@ -7,6 +7,26 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.5.2 (untagged)
+
+Wire version `v2`, unchanged. This adds one optional field to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read it
+can take it without touching code.
+
+- `price_history` is the coffee's price changes, oldest first: one point per
+  change, where a point is `{on, price_per_kg_eur_cents, available}`. `on` is a
+  date string, `price_per_kg_eur_cents` an integer or null, and `available` a
+  boolean or null. It is the first nested type in the contract. A float spelling
+  of a whole number, such as `2450.0`, is refused at the point as it is at the
+  top level. The series is capped at 50 points, and a producer trims the oldest
+  before sending: a longer series is refused by `check`. `first_seen_at` still
+  says when the coffee appeared.
+- The Python package exports `PricePoint` and `MAX_PRICE_HISTORY`.
+
+A missing `price_history` and an empty one mean the same thing: the producer has
+not recorded a series. Untagged, per the release rule: the release that tags
+this sets the semantic version.
+
 ## 2.5.1 (untagged)
 
 **Breaking wire change: the wire version moves to `v2`.** Subjects are now

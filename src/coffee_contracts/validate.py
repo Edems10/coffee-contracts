@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import itertools
 import json
-from datetime import datetime
+from datetime import date, datetime
 from functools import cache
 from importlib import resources
 from typing import Any
@@ -41,6 +42,25 @@ def _is_date_time(value: object) -> bool:
     return True
 
 
+def _is_date(value: object) -> bool:
+    """Whether a ``date`` is one the other side will be able to read back.
+
+    Args:
+        value: The instance the schema annotated ``format: date``.
+
+    Returns:
+        True, including for a non-string, for the same reason as ``_is_date_time``.
+
+    Raises:
+        ValueError: When a string is not a calendar date, which the registration
+            below turns into an ordinary validation failure.
+    """
+    if not isinstance(value, str):
+        return True
+    date.fromisoformat(value)
+    return True
+
+
 #: ``format`` is an annotation jsonschema ignores unless it is handed a checker,
 #: and its own ``date-time`` checker registers only when ``rfc3339-validator``
 #: is installed, which it is not. Checking with ``datetime.fromisoformat``
@@ -49,6 +69,7 @@ def _is_date_time(value: object) -> bool:
 #: RFC 3339 check would refuse spellings this package's own reader accepts.
 _FORMATS = jsonschema.FormatChecker()
 _FORMATS.checks("date-time", raises=ValueError)(_is_date_time)
+_FORMATS.checks("date", raises=ValueError)(_is_date)
 
 
 @cache
@@ -144,3 +165,63 @@ def check(payload: dict[str, Any]) -> None:
         if problem is not None:
             message = f"{event_type}: {problem}"
             raise ContractError(message)
+    if event_type == "coffee.state":
+        problem = price_history_problem(payload)
+        if problem is not None:
+            message = f"{event_type}: {problem}"
+            raise ContractError(message)
+
+
+def price_history_problem(payload: dict[str, Any]) -> str | None:
+    """Say why a coffee's price history is not the series the contract describes.
+
+    The schema checks each point's shape and the length cap. The schema cannot
+    refuse a float spelling of a whole number, because JSON Schema's ``integer``
+    admits ``2450.0``, so each point's ``price_per_kg_eur_cents`` is held to
+    ``int`` here, as the top-level money fields are. The rules between points
+    need the whole series at once: the dates ascend strictly, no two consecutive
+    points carry the same price and availability, since a point is a change, and
+    the last point is not after ``observed_at``. Run this only on a payload the
+    schema has already passed.
+
+    Args:
+        payload: The decoded ``coffee.state`` body, with ``observed_at`` and
+            ``price_history`` as the schema shaped them.
+
+    Returns:
+        None when the series is well formed or absent. Otherwise one sentence
+        naming the first fault found.
+    """
+    series: list[dict[str, Any]] = payload.get("price_history", [])
+    for index, point in enumerate(series):
+        cents = point["price_per_kg_eur_cents"]
+        if cents is not None and type(cents) is not int:
+            return (
+                f"price_history[{index}] price_per_kg_eur_cents must be a whole number "
+                f"of cents, got {cents!r}"
+            )
+    for before, after in itertools.pairwise(series):
+        if date.fromisoformat(after["on"]) <= date.fromisoformat(before["on"]):
+            return f"price_history is not in date order at {after['on']}"
+        if _same_price(before, after):
+            return f"price_history repeats {after['on']}: a point is a change, not a day"
+    if series:
+        last = date.fromisoformat(series[-1]["on"])
+        if last > datetime.fromisoformat(payload["observed_at"]).date():
+            return "price_history runs past observed_at"
+    return None
+
+
+def _same_price(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Whether two points carry the same price and availability.
+
+    Args:
+        before: The earlier point, as the schema shaped it, with integer cents.
+        after: The later point, as the schema shaped it, with integer cents.
+
+    Returns:
+        True when the availability is equal and the cents are equal. Two nulls
+        are equal.
+    """
+    same_price = before["price_per_kg_eur_cents"] == after["price_per_kg_eur_cents"]
+    return bool(same_price and before["available"] == after["available"])

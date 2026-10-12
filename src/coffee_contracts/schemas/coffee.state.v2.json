@@ -75,6 +75,24 @@
       "format": "date-time",
       "description": "Set once the shop stopped listing it. A delisting is a state rather than a deleted message, so it survives the stream's per-subject compaction."
     },
-    "images": { "type": "array", "items": { "type": "string" } }
+    "images": { "type": "array", "items": { "type": "string" } },
+    "price_history": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "The coffee's price changes, oldest first, one point per change: a point is emitted only where price_per_kg_eur_cents or available differs from the day before, so a coffee priced the same for a year is one point. The last point holds until observed_at. At most 50 points; a producer trims the oldest before sending, and a longer series is refused. first_seen_at still says when the coffee appeared. Absent and an empty list mean the same thing: the producer recorded no series. Dates must be in strictly ascending order and no two consecutive points may carry the same price and availability; both are checked by the contract's check function, not by this schema.",
+      "items": {
+        "type": "object",
+        "required": ["on", "price_per_kg_eur_cents", "available"],
+        "additionalProperties": true,
+        "properties": {
+          "on": { "type": "string", "format": "date" },
+          "price_per_kg_eur_cents": {
+            "type": ["integer", "null"],
+            "description": "The comparable price per kilogram in euro cents, a JSON integer as the top-level field is. Null means unpriced that day."
+          },
+          "available": { "type": ["boolean", "null"] }
+        }
+      }
+    }
   }
 }
