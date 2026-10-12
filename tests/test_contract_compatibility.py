@@ -100,7 +100,7 @@ def constraints(node: object) -> object:
 #: Every edit the old top-level-``type`` comparison waved through, each as the
 #: property this contract ships today and the version that breaks somebody.
 #: ``process_method``, ``origin_country``, ``name`` and ``variety`` are real
-#: properties of ``coffee.state.v1.json``; the sub-object is not yet, which is
+#: properties of ``coffee.state.v2.json``; the sub-object is not yet, which is
 #: why its case is latent rather than hypothetical.
 BREAKING_EDITS = [
     (

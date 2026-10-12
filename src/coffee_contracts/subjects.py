@@ -6,7 +6,7 @@ import re
 #: A breaking change publishes `coffee.v2.…` beside `coffee.v1.…`, both streams
 #: run for as long as it takes every consumer to move, and nobody coordinates a
 #: release.
-VERSION = "v1"
+VERSION = "v2"
 
 #: One subject per coffee, carrying that coffee's whole current state. The
 #: stream keeps one message per subject, which makes the stream itself the

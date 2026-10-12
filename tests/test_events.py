@@ -26,7 +26,7 @@ def a_coffee(**overrides: object) -> CoffeeState:
         "name": "Ethiopia Guji",
         "origin_country": "ET",
         "flavor_notes": ["jahody", "med"],
-        "price_per_kg_eur": 39.65,
+        "price_per_kg_eur_cents": 3965,
     }
     values.update(overrides)
     return CoffeeState(**values)  # type: ignore[arg-type]
@@ -311,3 +311,119 @@ def test_a_decaf_that_is_not_a_boolean_is_refused(value: object) -> None:
 
     with pytest.raises(ContractError):
         check(payload)
+
+
+def test_money_survives_the_wire_as_an_integer_of_minor_units() -> None:
+    """Both price fields come back equal and still ``int``: a float 2450.0 would
+    compare equal to 2450 and still be read as a different type by the consumer."""
+    coffee = a_coffee(price_minor=34900, currency="CZK", price_per_kg_eur_cents=2450)
+
+    check(json.loads(to_json(coffee)))
+
+    restored = coffee_from_json(to_json(coffee))
+    assert restored.price_minor == 34900
+    assert restored.price_per_kg_eur_cents == 2450
+    assert type(restored.price_minor) is int
+    assert type(restored.price_per_kg_eur_cents) is int
+
+
+@pytest.mark.parametrize("field", ["price_minor", "price_per_kg_eur_cents"])
+def test_both_money_fields_accept_none_for_an_unpriced_coffee(field: str) -> None:
+    coffee = a_coffee(**{field: None})
+
+    check(json.loads(to_json(coffee)))
+
+    assert getattr(coffee_from_json(to_json(coffee)), field) is None
+
+
+@pytest.mark.parametrize("field", ["price_minor", "price_per_kg_eur_cents"])
+def test_a_money_field_that_is_not_an_integer_is_refused(field: str) -> None:
+    """A fractional value is refused rather than truncated: 24.5 cents-as-euros
+    is not a price the minor-unit field can carry."""
+    payload = json.loads(to_json(a_coffee()))
+    payload[field] = 24.5
+
+    with pytest.raises(ContractError, match="is not of type"):
+        check(payload)
+
+
+def test_the_old_float_money_names_are_gone() -> None:
+    """Renamed, not retyped: a consumer still reading ``price`` or
+    ``price_per_kg_eur`` must fail on the missing field, not read a cents
+    value as euros."""
+    payload = json.loads(to_json(a_coffee()))
+
+    assert "price" not in payload
+    assert "price_per_kg_eur" not in payload
+    assert "price" not in schema("coffee.state")["properties"]
+    assert "price_per_kg_eur" not in schema("coffee.state")["properties"]
+
+
+def test_every_other_field_still_round_trips_exactly() -> None:
+    """Counter-example for the money rename: a coffee with every non-money field
+    set survives the wire unchanged, so the rename moved nothing else."""
+    coffee = a_coffee(
+        product_kind="beans",
+        product_kind_source="the page says Káva v zrnech",
+        arabica_pct=70,
+        robusta_pct=30,
+        sca_score=86.5,
+        weight_g=250,
+        altitude_min_m=1800,
+        available=True,
+        decaf=False,
+        images=["https://a/1.jpg"],
+        first_seen_at=NOW,
+        delisted_at=None,
+        price_minor=34900,
+        currency="CZK",
+        price_per_kg_eur_cents=2450,
+    )
+
+    check(json.loads(to_json(coffee)))
+
+    assert coffee_from_json(to_json(coffee)) == coffee
+
+
+def test_the_reader_refuses_a_float_spelled_whole_number() -> None:
+    """``2450.0`` is a whole number, but the reader must not return it as a float:
+    the consumer would then hold money in a type the contract forbids."""
+    payload = json.loads(to_json(a_coffee(price_per_kg_eur_cents=2450)))
+    payload["price_per_kg_eur_cents"] = 2450.0
+
+    with pytest.raises(ValueError, match="whole number"):
+        coffee_from_json(json.dumps(payload))
+
+
+def test_check_refuses_a_float_spelled_whole_number() -> None:
+    """The schema alone accepts ``2450.0`` for ``integer``, so ``check`` holds the
+    money fields to ``int`` itself."""
+    payload = json.loads(to_json(a_coffee(price_minor=34900)))
+    payload["price_minor"] = 34900.0
+
+    with pytest.raises(ContractError, match="whole number"):
+        check(payload)
+
+
+@pytest.mark.parametrize("field", ["price_minor", "price_per_kg_eur_cents"])
+def test_a_fractional_money_value_is_refused_by_check_and_by_the_reader(field: str) -> None:
+    """``24.5`` is refused, never truncated to 24."""
+    payload = json.loads(to_json(a_coffee()))
+    payload[field] = 24.5
+
+    with pytest.raises(ContractError):
+        check(payload)
+    with pytest.raises(ValueError, match="whole number"):
+        coffee_from_json(json.dumps(payload))
+
+
+def test_a_whole_money_value_is_accepted_and_read_as_an_int() -> None:
+    """``2450`` passes ``check`` and comes back from the reader as ``int``."""
+    coffee = a_coffee(price_per_kg_eur_cents=2450)
+    payload = json.loads(to_json(coffee))
+
+    check(payload)
+
+    restored = coffee_from_json(json.dumps(payload))
+    assert restored.price_per_kg_eur_cents == 2450
+    assert type(restored.price_per_kg_eur_cents) is int
