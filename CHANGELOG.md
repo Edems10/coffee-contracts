@@ -4,8 +4,62 @@ Consumers pin a tag, so the only way to find out what a bump costs is to read
 it here. Each entry says what a consumer has to do, not what the diff touched.
 
 The version here is the *distribution's*. The wire version lives in `VERSION`
-in `subjects.py` and moves only when a subject changes — it has been `v1`
-throughout.
+in `subjects.py` and moves only when a subject changes — it was `v1`
+until 3.0.0 and is `v2` from there.
+
+## 3.0.0 (2026-10-12)
+
+**Breaking: every consumer has to change its code.** This release is the
+untagged `2.5.1` and `2.5.2` below, read together. The money fields are renamed
+and retyped, and the wire version moves to `v2`. Consumers pin `v3.0.0` only
+once they have moved.
+
+### What breaks
+
+- Money is an integer count of the currency's minor unit, not a float in
+  currency units. The two fields are renamed, and the old names are removed
+  rather than deprecated:
+  - `price` (float) is now `price_minor` (int). `349.00` Kč or EUR is `34900`.
+    Null when unpriced.
+  - `price_per_kg_eur` (float) is now `price_per_kg_eur_cents` (int), in euro
+    cents per kilogram. `24.50` EUR/kg is `2450`. Null when there is no
+    comparable price.
+  - A consumer that still reads `price` finds no such field and fails loudly.
+    It does not render a price a hundred times too large.
+  - A money value that is not a whole number is refused. `check` refuses `24.5`
+    and `2450.0`, and the reader raises on them.
+- The wire version is `v2`. Subjects are `coffee.v2.catalogue.…` and
+  `coffee.v2.embedding.…`, and the schema is `coffee.state.v2.json`.
+
+### Migrating
+
+`coffee.v1.…` and `coffee.v2.…` are separate subjects, so both streams can run
+until every consumer has moved. A producer pinned to `2.5.x` keeps publishing
+`v1`, and a producer on `3.0.0` publishes `v2`. A consumer subscribes to one
+stream or the other, so it moves to `v2` and the renamed fields when it is
+ready. Nothing is re-published across the two streams.
+
+### What is added
+
+- `price_history` is the coffee's price changes, oldest first. Each point is a
+  `PricePoint`, `{on, price_per_kg_eur_cents, available}`, with one point per
+  change rather than one per day. It is optional: a missing field and an empty
+  list mean the same thing. It is the first nested type in the contract.
+- `MAX_PRICE_HISTORY` is `50`. A producer trims the oldest points before it
+  sends, and `check` refuses a longer series.
+- The Python package exports `PricePoint` and `MAX_PRICE_HISTORY`.
+
+### Who has to move
+
+Each is its own pull request in its own repository:
+
+- coffee-aggregator writes both money fields and publishes to `v2`.
+- coffee-api stores both money fields and subscribes to `v2`.
+- coffee-web renders both money fields.
+- coffee-cupper reads both money fields for retrieval and subscribes to `v2`.
+
+The entries for `2.5.1` and `2.5.2` below stay untagged. They are the record of
+each pull request, and this release does not replace them.
 
 ## 2.5.2 (untagged)
 
