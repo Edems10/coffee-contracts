@@ -15,7 +15,12 @@ COFFEE_STATE = "coffee.state"
 #: the schema alone.
 COFFEE_EMBEDDING = "coffee.embedding"
 
-#: The kinds a product may be, in the order ``coffee.state.v1.json`` lists them.
+#: The ``CoffeeState`` fields that carry money. Each is a whole count of a minor
+#: unit, so the reader and ``validate.check`` both hold them to ``int``: a JSON
+#: ``2450.0`` is refused rather than read as a float.
+MONEY_FIELDS: tuple[str, ...] = ("price_minor", "price_per_kg_eur_cents")
+
+#: The kinds a product may be, in the order ``coffee.state.v2.json`` lists them.
 #: ``other`` is the decided catch-all for a product that is none of the named
 #: kinds, listed last. Absent or null means undecided, which is a different answer.
 #: Part of the contract: a test holds this tuple and the schema's enum to each
@@ -70,9 +75,11 @@ class CoffeeState:
         tasting_text: The shop's prose description of the cup.
         sca_score: The cupping score, when published.
         weight_g: The net weight the price buys.
-        price: The price of that package.
-        currency: The ISO code the shop prices in.
-        price_per_kg_eur: The comparable price.
+        price_minor: The price of that package, as a count of the minor unit of
+            ``currency``: 34900 is 349.00 when ``currency`` is CZK. None when unpriced.
+        currency: The ISO 4217 code of the currency ``price_minor`` is counted in.
+        price_per_kg_eur_cents: The comparable price per kilogram, in euro cents:
+            2450 is 24.50 EUR per kilogram. None when the shop gives no comparable price.
         available: Whether the shop says it is in stock.
         delisted_at: When the shop stopped listing it; None while it is sold.
         first_seen_at: When this catalogue first saw it, not its release date; None if unrecorded.
@@ -102,9 +109,9 @@ class CoffeeState:
     tasting_text: str | None = None
     sca_score: float | None = None
     weight_g: int | None = None
-    price: float | None = None
+    price_minor: int | None = None
     currency: str | None = None
-    price_per_kg_eur: float | None = None
+    price_per_kg_eur_cents: int | None = None
     available: bool | None = None
     delisted_at: datetime | None = None
     first_seen_at: datetime | None = None
@@ -152,13 +159,19 @@ def coffee_from_json(raw: bytes | str) -> CoffeeState:
 
     Unknown keys are dropped rather than raising: a producer on a later minor
     version of the contract adds fields, and a consumer that refused them would
-    make every additive change a breaking one.
+    make every additive change a breaking one. The money fields in
+    ``MONEY_FIELDS`` must be whole numbers, and are refused otherwise, because a
+    fractional or float-spelled price read as-is would be a price nobody sent.
 
     Args:
         raw: The message body.
 
     Returns:
-        The event.
+        The event, with each money field an ``int`` or None.
+
+    Raises:
+        ValueError: When a money field is not an integer, such as ``2450.0`` or
+            ``24.5``, or when a timestamp cannot be parsed.
     """
     return _build(CoffeeState, json.loads(raw))
 
@@ -176,4 +189,9 @@ def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
     for name in ("observed_at", "delisted_at", "first_seen_at"):
         if isinstance(known.get(name), str):
             known[name] = datetime.fromisoformat(known[name])
+    for name in MONEY_FIELDS:
+        value = known.get(name)
+        if value is not None and type(value) is not int:
+            message = f"{name} must be a whole number of minor units, got {value!r}"
+            raise ValueError(message)
     return cls(**known)

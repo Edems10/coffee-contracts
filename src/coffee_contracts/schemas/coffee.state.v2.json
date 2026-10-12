@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Edems10/coffee-contracts/coffee.state.v1.json",
+  "$id": "https://github.com/Edems10/coffee-contracts/coffee.state.v2.json",
   "title": "coffee.state",
   "description": "One coffee, whole, as the catalogue last saw it. Carried in full so that no consumer has to call the producer back.",
   "type": "object",
@@ -60,9 +60,15 @@
     "tasting_text": { "type": ["string", "null"] },
     "sca_score": { "type": ["number", "null"] },
     "weight_g": { "type": ["integer", "null"] },
-    "price": { "type": ["number", "null"] },
-    "currency": { "type": ["string", "null"] },
-    "price_per_kg_eur": { "type": ["number", "null"] },
+    "price_minor": {
+      "type": ["integer", "null"],
+      "description": "The price of the package as a count of the minor unit of currency: 34900 is 349.00 when currency is CZK. Null when unpriced."
+    },
+    "currency": { "type": ["string", "null"], "description": "The ISO 4217 code of the currency price_minor is counted in." },
+    "price_per_kg_eur_cents": {
+      "type": ["integer", "null"],
+      "description": "The comparable price per kilogram in euro cents: 2450 is 24.50 EUR per kilogram. Null when the shop gives no comparable price."
+    },
     "available": { "type": ["boolean", "null"] },
     "delisted_at": {
       "type": ["string", "null"],

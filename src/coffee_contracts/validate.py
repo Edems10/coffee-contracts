@@ -8,10 +8,11 @@ from typing import Any
 
 import jsonschema
 
+from coffee_contracts.events import MONEY_FIELDS
 from coffee_contracts.vector import vector_problem
 
 SCHEMA_FILES = {
-    "coffee.state": "coffee.state.v1.json",
+    "coffee.state": "coffee.state.v2.json",
     "coffee.embedding": "coffee.embedding.v1.json",
 }
 
@@ -110,6 +111,11 @@ def check(payload: dict[str, Any]) -> None:
     keyword carries here, and ``vector_problem`` reads the ``dimension``,
     ``dtype`` and ``vector`` keys that the schema guarantees.
 
+    A ``coffee.state`` money field must be a JSON integer, and a float spelling
+    of a whole number is refused here too. The schema cannot say so: JSON
+    Schema's ``integer`` is a mathematical integer, so ``2450.0`` satisfies it,
+    and the reader would then hand the consumer a float.
+
     Args:
         payload: The decoded message body.
 
@@ -125,6 +131,14 @@ def check(payload: dict[str, Any]) -> None:
     except jsonschema.ValidationError as error:
         message = f"{event_type}: {error.message}"
         raise ContractError(message) from error
+    if event_type == "coffee.state":
+        for name in MONEY_FIELDS:
+            value = payload.get(name)
+            if value is not None and type(value) is not int:
+                message = (
+                    f"{event_type}: {name} must be a whole number of minor units, got {value!r}"
+                )
+                raise ContractError(message)
     if event_type == "coffee.embedding":
         problem = vector_problem(payload)
         if problem is not None:

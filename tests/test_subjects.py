@@ -13,7 +13,7 @@ from coffee_contracts import (
 
 
 def test_one_subject_per_coffee() -> None:
-    assert catalogue("kafista", "17133") == "coffee.v1.catalogue.kafista.17133"
+    assert catalogue("kafista", "17133") == "coffee.v2.catalogue.kafista.17133"
 
 
 def test_the_catalogue_stream_captures_every_coffee() -> None:
@@ -37,7 +37,7 @@ def test_a_token_that_would_change_the_subject_is_refused(bad: str) -> None:
 
 
 def test_one_embedding_subject_per_coffee() -> None:
-    assert embedding("kafista", "17133") == "coffee.v1.embedding.kafista.17133"
+    assert embedding("kafista", "17133") == "coffee.v2.embedding.kafista.17133"
 
 
 def test_the_embedding_subject_round_trips_to_its_coffee() -> None:

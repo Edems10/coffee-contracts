@@ -7,6 +7,43 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it has been `v1`
 throughout.
 
+## 2.5.1 (untagged)
+
+**Breaking wire change: the wire version moves to `v2`.** Subjects are now
+`coffee.v2.catalogue.…` and `coffee.v2.embedding.…`, and `coffee.v1.…` is no
+longer published by this contract. Consumers that stay on `2.5.0` keep reading
+`v1` and nothing they subscribe to is removed. Nothing is re-published for them.
+The schema is `coffee.state.v2.json`, and `coffee.embedding.v1.json` is
+unchanged.
+
+`VERSION` is one value for the whole contract, so `coffee.embedding` moves to
+`coffee.v2.embedding` as well, though its schema and content did not change.
+Consumers of embeddings re-subscribe for that alone.
+
+This is untagged. No `v2.5.1` tag will be cut, so do not look for one. The
+release pull request decides the distribution number (`3.0.0` is expected)
+and cuts the tag.
+
+Money is an integer count of a minor unit, and the float fields are gone.
+Renamed, not retyped, so an unmoved consumer fails on the missing field rather
+than reading a cents value as euros:
+
+- `price` (float) is now `price_minor` (int): a count of the minor unit of
+  `currency`, so `34900` is 349.00 CZK or EUR. Null when unpriced.
+- `price_per_kg_eur` (float) is now `price_per_kg_eur_cents` (int): euro cents
+  per kilogram, so `2450` is 24.50 EUR/kg. Null when there is no comparable price.
+
+A money field that is not a whole number is refused. `check` refuses `24.5` and
+`2450.0`, and the reader raises on them rather than truncating or returning a
+float.
+
+Consumers that must move to `v2` and to the new fields before this is released:
+
+- coffee-aggregator writes both fields and publishes to `v2`.
+- coffee-api stores both fields and subscribes to `v2`.
+- coffee-web renders both fields.
+- coffee-cupper reads both fields for retrieval and subscribes to `v2`.
+
 ## 2.5.0
 
 Wire version `v1`, unchanged. This adds one optional field to `coffee.state`

@@ -17,8 +17,8 @@ to it being up — which is the thing this architecture exists to avoid.
 **One subject per coffee.**
 
 ```
-coffee.v1.catalogue.<site>.<external_id>     the coffee's current state
-coffee.v1.embedding.<site>.<external_id>     the coffee's current embedding
+coffee.v2.catalogue.<site>.<external_id>     the coffee's current state
+coffee.v2.embedding.<site>.<external_id>     the coffee's current embedding
 ```
 
 **The catalogue stream is compacted: one message per subject.** That makes the

@@ -49,7 +49,7 @@ flowchart LR
     end
 
     shops(["155 shops"]) -.->|"HTTP, robots.txt"| crawler
-    pub ==>|"coffee.v1.catalogue.site.id"| cat
+    pub ==>|"coffee.v2.catalogue.site.id"| cat
     cat ==> consumer
     site -->|HTTPS| api
 ```
