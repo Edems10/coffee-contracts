@@ -7,6 +7,54 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.1.0 (2026-10-15)
+
+**This release is the untagged `3.0.1` and `3.0.2` below, read together.** It is
+the first tag a consumer can pin that names the v2 streams correctly.
+
+Nothing on the wire has changed since 3.0.0: `VERSION` is still `v2`, and every
+subject, schema and payload is what 3.0.0 shipped.
+
+### What changed
+
+- **The streams are `CATALOGUE_V2` and `EMBEDDINGS_V2`**, derived from `VERSION`
+  rather than written out, so a future wire version carries its stream names
+  with it. A consumer binds by `CATALOGUE.name` and so follows this without
+  touching code.
+- **The side-by-side migration path 3.0.0 described is not available in this
+  deployment.** There is one producer, pinned to one contract version. A
+  coordinated cutover replaced it: `coffee-broker` provisions the v2 streams,
+  then `coffee-api` moves, then `coffee-cupper`, then `coffee-aggregator` last
+  because it is the producer, and `coffee-web` follows the API.
+
+### Why a minor and not a major
+
+Nothing is pinned to `v3.0.0`. `coffee-api` and `coffee-aggregator` are on
+`v2.5.0`, `coffee-cupper` on `v2.4.0`. No consumer could ever have observed the
+stream name 3.0.0 shipped, so renaming it breaks nothing anybody could see. A
+major is the loudest thing a version can say and it is worth very little spent
+on a change nobody could observe.
+
+### `v3.0.0` is a tag nobody should pin
+
+It is the only tagged release that names the v2 streams `CATALOGUE` and
+`EMBEDDINGS`, so a consumer pinning it provisions a broker that converts the
+running v1 streams in place rather than standing new ones beside them. Someone
+reading the tag list a year from now will see `v3.0.0` looking like the v2
+release with nothing to warn them. This is that warning.
+
+The `3.0.1` entry below says a consumer already pinned to `v3.0.0` has nothing
+to do. That was written before the stream-name defect was known, and this
+release supersedes it: there is something to do, and it is to pin `v3.1.0`.
+
+**What a consumer has to do:** pin `v3.1.0`. If it is moving from a 2.x pin,
+everything 3.0.0's "What breaks" section says still applies — the money fields
+renamed and retyped, the wire version at `v2` — and that is the real work. This
+release does not change it.
+
+The entries for `3.0.1` and `3.0.2` below stay untagged. They are the record of
+each pull request, and this release does not replace them.
+
 ## 3.0.2 (untagged)
 
 **The streams are now named `CATALOGUE_V2` and `EMBEDDINGS_V2`.** 3.0.0 moved
