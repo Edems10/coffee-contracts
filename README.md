@@ -47,8 +47,9 @@ ignores it is worse than no arrow.
 ## Versioning
 
 The version is in the subject, not the payload. A breaking change publishes
-`coffee.v2.…` beside `coffee.v1.…`, both run for as long as it takes every
-consumer to move, and nobody coordinates a release.
+`coffee.v2.…` beside `coffee.v1.…`, but there is a single producer pinned to a
+single contract version, so a new wire version is rolled out by a coordinated
+cutover rather than by running both at once.
 
 Additive change needs no new version: an unknown field is dropped on read, so a
 producer can add one without waiting for its consumers. Refusing unknown fields
@@ -63,8 +64,8 @@ Both directions count. Narrowing breaks the producers already sending values
 the schema now refuses; loosening breaks the consumers validating against the
 schema they pinned, which is the whole point of pinning one. So making a field
 nullable needs a new version too — the escape hatch is not a looser rule, it is
-`VERSION`, and a new version costs little because both run side by side until
-the last consumer moves.
+`VERSION`, and a new version costs a coordinated cutover rather than nothing,
+because one producer pinned to one contract version cannot publish both.
 
 Annotations are not part of it: `description`, `title`, `default` and
 `examples` may be edited whenever. CI diffs every schema against the newest
