@@ -7,6 +7,39 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.0.1 (untagged)
+
+A correction to the 3.0.0 notes. Nothing on the wire changed and nothing in the
+package changed: the wire version is still `v2`, every subject and every schema
+is what 3.0.0 shipped, and a consumer already pinned to `v3.0.0` has nothing to
+do.
+
+**The side-by-side migration path is not available in this deployment.** The
+"Migrating" section of 3.0.0 says `coffee.v1.…` and `coffee.v2.…` can both run
+until the last consumer has moved. That is true of the subjects and false of
+this project, because there is one producer and a package is pinned to one
+version: `coffee-aggregator` builds its subjects from the contract it has
+installed, so it publishes `v1` or `v2` and never both. Running both would mean
+two contract versions in one virtualenv. The sentence describes a path for
+consumers operated independently of one another; these are four services on one
+box behind one crawl.
+
+**What replaced it was a coordinated cutover**, in this order: `coffee-broker`
+provisions the v2 streams, then `coffee-api` moves, then `coffee-cupper`, then
+`coffee-aggregator` last because it is the producer. `coffee-web` follows the
+API.
+
+**What that costs.** Between the first step and the last the v2 stream is empty
+and nothing consumes v1 any more. The catalogue stream is compacted, so one
+crawl after the aggregator moves restores it in full, and the site serves stored
+rows throughout. The cost is staleness for one crawl cycle, not an outage.
+
+A future wire version is migrated the same way, by a coordinated cutover;
+dual-publishing is not something `coffee-aggregator` is expected to learn.
+
+The 3.0.0 entry is left exactly as it was written, because a tagged release's
+notes are a record of what was said at the time.
+
 ## 3.0.0 (2026-10-12)
 
 **Breaking: every consumer has to change its code.** This release is the

@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 
 #: The contract version, carried in every subject rather than in the payload.
-#: A breaking change publishes `coffee.v2.…` beside `coffee.v1.…`, both streams
-#: run for as long as it takes every consumer to move, and nobody coordinates a
-#: release.
+#: A breaking change publishes `coffee.v2.…` beside `coffee.v1.…`, but this
+#: deployment has a single producer pinned to a single contract version, so a
+#: new wire version is rolled out by a coordinated cutover rather than by
+#: running both subjects at once.
 VERSION = "v2"
 
 #: One subject per coffee, carrying that coffee's whole current state. The
