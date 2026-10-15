@@ -6,6 +6,8 @@ from coffee_contracts import (
     CATALOGUE,
     EMBEDDINGS,
     STREAMS,
+    VERSION,
+    Stream,
     SubjectError,
     catalogue,
     embedding,
@@ -72,3 +74,19 @@ def test_a_token_that_would_change_the_embedding_subject_is_refused(bad: str) ->
         embedding(bad, "1")
     with pytest.raises(SubjectError):
         embedding("demo", bad)
+
+
+@pytest.mark.parametrize("stream", STREAMS, ids=lambda stream: stream.name)
+def test_a_stream_name_cannot_drift_from_the_subjects_it_captures(
+    stream: Stream,
+) -> None:
+    """A stream is created and looked up by name, so a name left behind when the
+    subjects move converts the running stream instead of adding one beside it."""
+    assert f".{VERSION}." in stream.subjects[0]
+    assert stream.name.endswith(f"_{VERSION.upper()}")
+
+
+def test_the_streams_are_named_as_the_broker_and_consumers_will_see_them() -> None:
+    """`coffee-broker` provisions by this name and both consumers bind with it."""
+    assert CATALOGUE.name == "CATALOGUE_V2"
+    assert EMBEDDINGS.name == "EMBEDDINGS_V2"
