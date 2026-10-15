@@ -7,6 +7,35 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.0.2 (untagged)
+
+**The streams are now named `CATALOGUE_V2` and `EMBEDDINGS_V2`.** 3.0.0 moved
+the wire version to `v2` and versioned the subjects, but left both stream names
+exactly where they were — so the contract described the live v1 streams under
+their own names while asking for v2 subjects. `coffee-broker` creates and looks
+a stream up by name, so provisioning that contract did not stand the v2 streams
+up beside the v1 pair: it converted the running pair in place, and from that
+moment every v1 publish by `coffee-aggregator` would have failed its ack until
+the aggregator itself moved.
+
+The name is now derived from `VERSION` rather than spelled out, because a
+literal is precisely what stood still while the subjects moved. A future wire
+version carries its stream names with it.
+
+Nothing on the wire changed: `VERSION` is still `v2`, and every subject, schema
+and payload is what 3.0.0 shipped. The streams' compaction, retention and
+descriptions are unchanged too, so the v2 pair is provisioned with the same
+configuration as the v1 pair it now sits beside.
+
+**What a consumer has to do:** nothing beyond moving its pin. `coffee-api` and
+`coffee-cupper` already bind with `CATALOGUE.name`, so the new name reaches them
+with the release that carries it. **What the broker does:** creates two streams
+beside the v1 pair instead of rewriting them, which is what lets v1 keep serving
+through the cutover.
+
+Untagged, per the release rule: the release that follows sets the number
+consumers pin.
+
 ## 3.0.1 (untagged)
 
 A correction to the 3.0.0 notes. Nothing on the wire changed and nothing in the
