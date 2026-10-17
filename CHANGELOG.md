@@ -7,6 +7,25 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.1.1 (2026-10-17, untagged)
+
+Nothing in the contract changed. This is repository housekeeping: the session
+wiring that Claude Code uses in this checkout is now committed, so it reaches
+every git worktree. Before, a worktree had only tracked files, so an agent
+working in one got no SessionStart hook and none of the team's learnings.
+
+- `.trail/` is tracked: the SessionStart hook (`hook.cjs`), its README, and a
+  `.gitignore` that keeps per-machine state out of git.
+- `.claude/settings.json` is tracked and registers that hook.
+- `.gitignore` no longer ignores all of `.claude/`. It ignores
+  `.claude/settings.local.json` and `.claude/worktrees/`.
+
+The wire version is still `v2`, and no subject, schema or payload moved.
+
+**What a consumer has to do:** nothing. This is untagged. No `v3.1.1` tag will be
+cut, so do not look for one. The release pull request decides the next number
+and cuts the tag.
+
 ## 3.1.0 (2026-10-15)
 
 **This release is the untagged `3.0.1` and `3.0.2` below, read together.** It is

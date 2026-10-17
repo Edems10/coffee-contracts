@@ -11,4 +11,5 @@ dist/
 build/
 *.egg-info/
 # Agent scratch: Claude Code worktrees and session state, never project source.
-.claude/
+.claude/settings.local.json
+.claude/worktrees/
