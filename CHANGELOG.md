@@ -7,7 +7,7 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
-## 3.1.1 (2026-10-17, untagged)
+## 3.1.1 (untagged)
 
 Nothing in the contract changed. This is repository housekeeping: the session
 wiring that Claude Code uses in this checkout is now committed, so it reaches
