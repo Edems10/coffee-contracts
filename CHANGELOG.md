@@ -7,6 +7,45 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.1.2 (untagged)
+
+Wire version `v2`, unchanged. This adds one optional field to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read it
+can take it without touching code.
+
+- `pack_group_key` lets a consumer tell that two listings are the same coffee
+  from the same shop in a different pack size: they carry the same value
+  exactly when the producer judges them so. It is a string, at least one
+  character, or `null`. Its use is to leave a coffee's other pack sizes out of
+  a "similar coffees" section.
+
+**It is opaque.** Compare it for equality and nothing else: never parse it,
+order it or rely on its shape. It is not a key for the same coffee across
+shops, and two shops' listings of one coffee carry different values. A key for
+that is a later, separate field.
+
+Today a value looks like `<site>/<folded name>`, optionally followed by
+`~espresso` or `~filter`, for example `fathers/uganda zebigi~espresso`, and the
+longest seen is about 132 characters. That is an illustration, not a promise.
+It contains spaces, `/`, `~` and non-ASCII characters, so percent-encode it
+whenever it goes in a URL.
+
+A missing `pack_group_key` and a `null` one mean the same thing: the producer
+could not derive a key. The empty string is refused, because under equality it
+would make every keyless coffee in a shop the same coffee. The rule that
+produced the key is not on the wire.
+
+**A coffee that has not been republished keeps the message it was published
+with.** The stream keeps one message per coffee, so until the producer
+publishes that coffee again, its message has no `pack_group_key`.
+
+This is untagged. No `v3.1.2` tag will be cut, so do not look for one. The
+release pull request sets the number and cuts the tag.
+
+**What a consumer has to do:** nothing, unless it wants the field. A consumer
+that reads it treats absent and `null` alike, and percent-encodes the value
+before it goes in a URL.
+
 ## 3.1.1 (untagged)
 
 Nothing in the contract changed. This is repository housekeeping: the session
