@@ -93,6 +93,11 @@
           "available": { "type": ["boolean", "null"] }
         }
       }
+    },
+    "pack_group_key": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Identifies the same coffee from the same shop in a different pack size: two listings carry the same value exactly when the producer judges them the same coffee from the same shop. It is opaque. Compare it for equality only, and never parse it, order it or rely on its shape. It is not a key for the same coffee across shops, so do not use it to match listings of different shops. Today it looks like <site>/<folded name>, optionally followed by ~espresso or ~filter, for example fathers/uganda zebigi~espresso, and the longest seen is about 132 characters; that is an illustration, not a promise. It contains spaces, / and ~ and non-ASCII characters, so percent-encode it whenever it goes in a URL. Absent or null means the producer could not derive a key, which says nothing about whether other pack sizes exist."
     }
   }
 }

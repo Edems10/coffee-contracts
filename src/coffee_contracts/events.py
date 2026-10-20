@@ -117,6 +117,9 @@ class CoffeeState:
             Capped at ``MAX_PRICE_HISTORY`` points, oldest dropped first. The cap
             loses no fact about when the coffee started, which ``first_seen_at`` keeps.
             Empty when the producer recorded no series.
+        pack_group_key: Opaque, compared for equality only: two listings of one shop share
+            it when they are the same coffee in different pack sizes. Not a key across
+            shops. None when the producer could not derive one.
     """
 
     site: str
@@ -149,6 +152,7 @@ class CoffeeState:
     decaf: bool | None = None
     images: list[str] = field(default_factory=list)
     price_history: list[PricePoint] = field(default_factory=list)
+    pack_group_key: str | None = None
 
     @property
     def key(self) -> str:

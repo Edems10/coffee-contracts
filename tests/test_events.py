@@ -427,3 +427,49 @@ def test_a_whole_money_value_is_accepted_and_read_as_an_int() -> None:
     restored = coffee_from_json(json.dumps(payload))
     assert restored.price_per_kg_eur_cents == 2450
     assert type(restored.price_per_kg_eur_cents) is int
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "fathers/uganda zebigi~espresso",
+        "fathers/uganda zebigi~filter",
+        "kafebrno/etiopie guji čokoláda",
+        "fathers/" + "x" * 132,
+    ],
+)
+def test_a_pack_group_key_survives_the_wire_unchanged(key: str) -> None:
+    coffee = a_coffee(pack_group_key=key)
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))["pack_group_key"] == key
+    assert coffee_from_json(to_json(coffee)).pack_group_key == key
+
+
+def test_a_missing_pack_group_key_is_null_on_the_wire() -> None:
+    coffee = a_coffee()
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))["pack_group_key"] is None
+    assert coffee_from_json(to_json(coffee)).pack_group_key is None
+
+
+def test_a_payload_without_pack_group_key_is_still_valid() -> None:
+    """An older producer does not send the field, and absence reads as no key."""
+    payload = json.loads(to_json(a_coffee()))
+    del payload["pack_group_key"]
+
+    check(payload)
+
+    assert coffee_from_json(json.dumps(payload)).pack_group_key is None
+
+
+@pytest.mark.parametrize("value", ["", 123, True, ["a"], {"a": 1}])
+def test_a_pack_group_key_that_is_not_a_non_empty_string_is_refused(value: object) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload["pack_group_key"] = value
+
+    with pytest.raises(ContractError):
+        check(payload)
