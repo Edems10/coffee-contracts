@@ -36,13 +36,18 @@ and `coffee-cupper` are pinned to `v3.1.0` on their `main`, and `coffee-broker`
 requires `coffee-contracts>=3.1.0` against a sibling checkout. `required` on
 `coffee.state` did not change and the new property is optional and nullable, so
 a message without it still validates and a consumer that never reads it behaves
-as it did at `v3.1.0`. The compatibility test against `v3.1.0` passes. An
-additive optional field breaks nobody pinned there, and a major is worth little
-spent on a change nobody could observe.
+as it did at `v3.1.0` at runtime. The compatibility test against `v3.1.0`
+passes. An additive optional field breaks nobody pinned there, and a major is
+worth little spent on a change nobody could observe.
 
-**What a consumer has to do:** nothing, unless it wants the field. To read it,
-pin `v3.2.0`, treat absent and `null` alike, and percent-encode the value
-before it goes in a URL.
+**What a consumer has to do:** nothing to its code, unless it wants the field
+or checks the contract's fields against what it stores. A consumer that does
+the second fails that check on the pin move until it stores `pack_group_key` or
+names it as not stored. Today that is `coffee-api`
+(`tests/test_contract_fields.py`) and `coffee-cupper` (`tests/test_migrate.py`),
+which compare `dataclasses.fields(CoffeeState)` with their stored columns and
+mention `pack_group_key` nowhere yet. To read the field, pin `v3.2.0`, treat
+absent and `null` alike, and percent-encode the value before it goes in a URL.
 
 The entries for `3.1.2` and `3.1.1` below stay untagged. They are the record of
 each pull request, and this release does not replace them.
