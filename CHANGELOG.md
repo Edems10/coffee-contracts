@@ -7,6 +7,46 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.2.0 (2026-10-20)
+
+**This release is the untagged `3.1.1` and `3.1.2` below, read together.**
+`v3.2.0` is the first tag a consumer can pin that carries `pack_group_key`. No
+`v3.1.1` or `v3.1.2` tag exists and none will be cut.
+
+Wire version `v2`, unchanged: no subject, stream or existing property moved.
+`3.1.1` changed nothing on the wire, and `3.1.2` added one optional field to
+`coffee.state`.
+
+### What changed
+
+- **`coffee.state` carries an optional `pack_group_key`.** It marks two listings
+  of one shop as the same coffee in different pack sizes: they share the value
+  exactly when the producer judges them so. It is opaque and compared for
+  equality only, it is not a key across shops, and it has to be percent-encoded
+  before it goes in a URL. Absent and `null` mean the same thing, no key; the
+  empty string is refused. A coffee the producer has not republished yet has no
+  `pack_group_key` in its message. The `3.1.2` entry below has the detail.
+- **Repository housekeeping from `3.1.1`**: the session wiring is tracked so it
+  reaches every worktree. Nothing in the package changed.
+
+### Why a minor and not a major
+
+Nobody was reading anything that changed. `coffee-api`, `coffee-aggregator`
+and `coffee-cupper` are pinned to `v3.1.0` on their `main`, and `coffee-broker`
+requires `coffee-contracts>=3.1.0` against a sibling checkout. `required` on
+`coffee.state` did not change and the new property is optional and nullable, so
+a message without it still validates and a consumer that never reads it behaves
+as it did at `v3.1.0`. The compatibility test against `v3.1.0` passes. An
+additive optional field breaks nobody pinned there, and a major is worth little
+spent on a change nobody could observe.
+
+**What a consumer has to do:** nothing, unless it wants the field. To read it,
+pin `v3.2.0`, treat absent and `null` alike, and percent-encode the value
+before it goes in a URL.
+
+The entries for `3.1.2` and `3.1.1` below stay untagged. They are the record of
+each pull request, and this release does not replace them.
+
 ## 3.1.2 (untagged)
 
 Wire version `v2`, unchanged. This adds one optional field to `coffee.state`
