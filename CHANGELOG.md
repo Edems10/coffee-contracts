@@ -59,9 +59,9 @@ rule only loosened. The constraints on the new keys do bite: at `v3.2.0` they
 were unconstrained extras on an open schema, so `check` accepted `body: 7`, a
 repeated or `null` `brewing_methods`, a method outside the list and a point's
 `price_minor: 2450.0`, and it refuses each now. They bite only on keys no
-producer has sent. The point rule changed what a producer emits, but the only producer sends `price_history` as
-`[]` today (`jsonb_build_array()` in `coffee-aggregator`'s `sinks/outbox.py`),
-and no consumer reads points: `coffee-cupper` lists `price_history` as
+producer has sent. The point rule changed what a producer emits, but the only
+producer sends `price_history` as `[]` today (`jsonb_build_array()` in
+`coffee-aggregator`'s `sinks/outbox.py`), and no consumer reads points: `coffee-cupper` lists `price_history` as
 deliberately not stored and `coffee-api` names it as not stored. So nobody could
 observe it, and a major is worth little spent on a change nobody could see.
 
@@ -88,9 +88,9 @@ the ten new `coffee.state` fields (`description`, `origin_farm`,
   `coffee-cupper` term a message that fails it. That means
   coffee-aggregator#242 (the mapping onto the closed list, coffee-aggregator#249)
   has to land, and a crawl has to rewrite the rows, because a parsing fix
-  changes no stored row until the next crawl. Until then the aggregator leaves
-  `brewing_methods` and the four scores absent from what it sends: a `null`
-  `brewing_methods` is refused too.
+  changes no stored row until the next crawl. Until then the aggregator sends
+  them at their defaults, `null` scores and `[]` methods, rather than the stored
+  values: a `null` `brewing_methods` is refused too.
 - **`coffee-api`** (`tests/test_contract_fields.py`) and **`coffee-cupper`**
   (`tests/test_migrate.py`): they compare `dataclasses.fields(CoffeeState)` with
   their stored columns, and neither stores or names any of the ten today, so
