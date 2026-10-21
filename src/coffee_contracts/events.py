@@ -123,13 +123,17 @@ class CoffeeState:
             shops. None when the producer could not derive one.
         description: The shop's own prose about the coffee, with text the shop repeats across
             many of its coffees (nutrition tables, FAQs, packaging) already removed by the
-            producer. It is the shop's text, not ours. None when there is none.
-        origin_farm: The farm, as the shop names it, free text.
-        origin_producer: The producer, as the shop names it, free text.
-        origin_washing_station: The washing station, as the shop names it, free text.
+            producer. It is the shop's text, not ours. None, not an empty string, when there
+            is none.
+        origin_farm: The farm, as the shop names it, free text. None, not an empty string,
+            when it names none.
+        origin_producer: The producer, as the shop names it, free text. None, not an empty
+            string, when it names none.
+        origin_washing_station: The washing station, as the shop names it, free text. None,
+            not an empty string, when it names none.
         altitude_max_m: The upper end of the stated altitude in metres. Equal to
             ``altitude_min_m`` when the shop states a single height. None when the shop
-            states none.
+            states none. Not checked against ``altitude_min_m`` or for sign.
     """
 
     site: str

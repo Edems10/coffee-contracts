@@ -24,7 +24,16 @@ can take them without touching code.
 
 Every one is a string (the altitude an integer) or `null`, with no further
 constraint. A missing field and a `null` one mean the same thing: the shop
-stated none, or the producer could not extract it.
+stated none, or the producer could not extract it. A producer sends `null`, not
+an empty string, for "none", but the contract does not refuse `""`, so a
+consumer that displays these should treat an empty string like `null`.
+
+**The contract does not check the altitude.** It does not enforce
+`altitude_min_m <= altitude_max_m` and does not require either to be positive,
+so a consumer that draws a range must not assume the order. Like
+`altitude_min_m`, `altitude_max_m` accepts `2000.0` as an integer, as JSON
+Schema's `integer` does. No `minimum`, `minLength` or `maxLength` was added,
+because a constraint on a released property is frozen by the compatibility test.
 
 **A coffee that has not been republished keeps the message it was published
 with.** The stream keeps one message per coffee, so until the producer
