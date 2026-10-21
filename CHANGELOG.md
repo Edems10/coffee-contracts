@@ -18,22 +18,22 @@ property was removed, retyped or newly required.
 
 ### What changed
 
-- **`coffee.state` carries the story, farm and altitude range (#54).**
+- **`coffee.state` carries the story, farm and altitude range (#59).**
   `description`, `origin_farm`, `origin_producer`, `origin_washing_station` and
   `altitude_max_m`, each optional and nullable. The `3.2.1` entry below has the
   detail.
-- **`coffee.state` carries the taste scores and brewing methods (#55).** `body`,
+- **`coffee.state` carries the taste scores and brewing methods (#60).** `body`,
   `acidity`, `sweetness` and `bitterness` as whole numbers from 0 to 5, and
   `brewing_methods` from the closed `BREWING_METHODS` list. `check` refuses a
   score outside the range and a method outside the list. The `3.2.2` entry
   below has the detail.
-- **A price point carries the shop's own price and weight (#57).** `PricePoint`
+- **A price point carries the shop's own price and weight (#62).** `PricePoint`
   gains `price_minor`, `currency` and `weight_g`. A point now starts when the
   shop's price, weight or availability differs from the day before, and not
   when the euro-per-kilogram figure alone moves. `check` refuses a repeat only
   when every value a point carries is equal, so its repeat rule loosened. The
   `3.2.4` entry below has the detail.
-- **The compatibility test's nested rule (#56).** Repository housekeeping:
+- **The compatibility test's nested rule (#61).** Repository housekeeping:
   `tests/test_contract_compatibility.py` applies one additive rule at every
   depth. Nothing in the package and nothing on the wire changed.
 
@@ -53,9 +53,13 @@ requires `coffee-contracts>=3.1.0` against a sibling checkout:
 Each new `coffee.state` property is optional, `required` is unchanged, and the
 root and `price_history.items` stay open, so a message without the new fields
 still validates and a consumer that never reads them behaves as it did at
-`v3.2.0`. The compatibility test against `v3.2.0` passes. `check` refuses
-nothing it accepted at `v3.2.0`: the repeat rule only loosened. The point rule
-changed what a producer emits, but the only producer sends `price_history` as
+`v3.2.0`. The compatibility test against `v3.2.0` passes. In a message without
+the new keys, `check` refuses nothing it accepted at `v3.2.0`, and its repeat
+rule only loosened. The constraints on the new keys do bite: at `v3.2.0` they
+were unconstrained extras on an open schema, so `check` accepted `body: 7`, a
+repeated or `null` `brewing_methods`, a method outside the list and a point's
+`price_minor: 2450.0`, and it refuses each now. They bite only on keys no
+producer has sent. The point rule changed what a producer emits, but the only producer sends `price_history` as
 `[]` today (`jsonb_build_array()` in `coffee-aggregator`'s `sinks/outbox.py`),
 and no consumer reads points: `coffee-cupper` lists `price_history` as
 deliberately not stored and `coffee-api` names it as not stored. So nobody could
@@ -77,7 +81,16 @@ the ten new `coffee.state` fields (`description`, `origin_farm`,
   `0001_initial.sql`, so none needs a migration or an expression.
   `brewing_methods` is a jsonb column and also goes in `_LIST_FIELDS`, so a null
   column reads back as `[]`. The `3.2.1` entry below left this check out; it
-  stays as written.
+  stays as written. **Publish the new fields only once the stored values
+  satisfy `check`:** `brewing_methods` holds free text today (`labels/read.py`
+  keeps any item of at most four words), and `check` refuses a method outside
+  `BREWING_METHODS` and a score outside 0 to 5, and `coffee-api` and
+  `coffee-cupper` term a message that fails it. That means
+  coffee-aggregator#242 (the mapping onto the closed list, coffee-aggregator#249)
+  has to land, and a crawl has to rewrite the rows, because a parsing fix
+  changes no stored row until the next crawl. Until then the aggregator leaves
+  `brewing_methods` and the four scores absent from what it sends: a `null`
+  `brewing_methods` is refused too.
 - **`coffee-api`** (`tests/test_contract_fields.py`) and **`coffee-cupper`**
   (`tests/test_migrate.py`): they compare `dataclasses.fields(CoffeeState)` with
   their stored columns, and neither stores or names any of the ten today, so
