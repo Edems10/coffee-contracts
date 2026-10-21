@@ -7,6 +7,92 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.3.0 (2026-10-22)
+
+**This release is the untagged `3.2.1`, `3.2.2`, `3.2.3` and `3.2.4` below, read
+together.** `v3.3.0` is the first tag a consumer can pin that carries them. No
+`v3.2.1` to `v3.2.4` tag exists and none will be cut.
+
+Wire version `v2`, unchanged: no subject or stream moved, and no released
+property was removed, retyped or newly required.
+
+### What changed
+
+- **`coffee.state` carries the story, farm and altitude range (#54).**
+  `description`, `origin_farm`, `origin_producer`, `origin_washing_station` and
+  `altitude_max_m`, each optional and nullable. The `3.2.1` entry below has the
+  detail.
+- **`coffee.state` carries the taste scores and brewing methods (#55).** `body`,
+  `acidity`, `sweetness` and `bitterness` as whole numbers from 0 to 5, and
+  `brewing_methods` from the closed `BREWING_METHODS` list. `check` refuses a
+  score outside the range and a method outside the list. The `3.2.2` entry
+  below has the detail.
+- **A price point carries the shop's own price and weight (#57).** `PricePoint`
+  gains `price_minor`, `currency` and `weight_g`. A point now starts when the
+  shop's price, weight or availability differs from the day before, and not
+  when the euro-per-kilogram figure alone moves. `check` refuses a repeat only
+  when every value a point carries is equal, so its repeat rule loosened. The
+  `3.2.4` entry below has the detail.
+- **The compatibility test's nested rule (#56).** Repository housekeeping:
+  `tests/test_contract_compatibility.py` applies one additive rule at every
+  depth. Nothing in the package and nothing on the wire changed.
+
+### Why a minor and not a major
+
+Nobody could observe a break. `coffee-api`, `coffee-cupper` and
+`coffee-aggregator` are pinned to `v3.2.0` on their `main`, and `coffee-broker`
+requires `coffee-contracts>=3.1.0` against a sibling checkout:
+
+| repository | pin |
+| --- | --- |
+| `coffee-api` | `rev = "v3.2.0"` |
+| `coffee-cupper` | `@v3.2.0` |
+| `coffee-aggregator` | `rev = "v3.2.0"` (`coffee-contracts>=3.2.0`) |
+| `coffee-broker` | `coffee-contracts>=3.1.0`, sibling checkout (`path = "../coffee-contracts"`, editable) |
+
+Each new `coffee.state` property is optional, `required` is unchanged, and the
+root and `price_history.items` stay open, so a message without the new fields
+still validates and a consumer that never reads them behaves as it did at
+`v3.2.0`. The compatibility test against `v3.2.0` passes. `check` refuses
+nothing it accepted at `v3.2.0`: the repeat rule only loosened. The point rule
+changed what a producer emits, but the only producer sends `price_history` as
+`[]` today (`jsonb_build_array()` in `coffee-aggregator`'s `sinks/outbox.py`),
+and no consumer reads points: `coffee-cupper` lists `price_history` as
+deliberately not stored and `coffee-api` names it as not stored. So nobody could
+observe it, and a major is worth little spent on a change nobody could see.
+
+### What a consumer has to do on the pin move
+
+Nothing to its code unless it wants the fields, with the exceptions below. Of
+the ten new `coffee.state` fields (`description`, `origin_farm`,
+`origin_producer`, `origin_washing_station`, `altitude_max_m`, `body`,
+`acidity`, `sweetness`, `bitterness`, `brewing_methods`):
+
+- **`coffee-aggregator`**: its outbox selects every `CoffeeState` field as a
+  column of its `coffee` table (`STATE_FIELDS`, `_EXPRESSION_FOR` and
+  `_LIST_FIELDS` in `sinks/outbox.py`), and
+  `tests/test_outbox.py::test_every_state_expression_reads_a_column_the_coffee_table_has`
+  fails on the pin move until each of the ten has a column or an
+  `_EXPRESSION_FOR` entry. All ten already are columns of `coffee`, from
+  `0001_initial.sql`, so none needs a migration or an expression.
+  `brewing_methods` is a jsonb column and also goes in `_LIST_FIELDS`, so a null
+  column reads back as `[]`. The `3.2.1` entry below left this check out; it
+  stays as written.
+- **`coffee-api`** (`tests/test_contract_fields.py`) and **`coffee-cupper`**
+  (`tests/test_migrate.py`): they compare `dataclasses.fields(CoffeeState)` with
+  their stored columns, and neither stores or names any of the ten today, so
+  each fails that test on the pin move until it stores the ten or names them as
+  not stored. A consumer that decodes points keeping only the keys it knows
+  ignores the new point keys.
+- **`coffee-broker`** is unaffected: it takes streams and subjects from the
+  contract and never reads `CoffeeState`.
+- **Everyone**: treat absent and `null` alike, read `0` as a score and not as
+  missing, read `[]` as no methods, and expect that a coffee not yet republished
+  carries none of the new fields.
+
+The entries for `3.2.4`, `3.2.3`, `3.2.2` and `3.2.1` below stay untagged. They
+are the record of each pull request, and this release does not replace them.
+
 ## 3.2.4 (untagged)
 
 Wire version `v2`, unchanged. A price point gains three optional fields and the
