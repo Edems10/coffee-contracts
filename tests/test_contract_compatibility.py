@@ -97,6 +97,117 @@ def constraints(node: object) -> object:
     return node
 
 
+def named(path: str, name: str) -> str:
+    """Return the dotted path of a property below a path ("" is the root schema).
+
+    Args:
+        path: The path of the enclosing subschema.
+        name: The property, or the keyword such as ``items``, below it.
+
+    Returns:
+        ``path.name``, or just ``name`` at the root.
+    """
+    return f"{path}.{name}" if path else name
+
+
+def is_open(node: dict[str, Any]) -> bool:
+    """Return whether an object subschema accepts properties it does not name.
+
+    Args:
+        node: An object subschema.
+
+    Returns:
+        True when ``additionalProperties`` is absent or ``true``. A schema
+        value, or ``false``, is not open.
+    """
+    return node.get("additionalProperties", True) is True
+
+
+def breaking_changes(was: object, now: object, path: str = "") -> list[str]:
+    """Return what makes ``now`` break somebody who validates against ``was``.
+
+    The same rule applies to the root schema and to every object subschema
+    below it, including the ``items`` of an array. An object subschema is one
+    that has ``properties``. In each, three things fail: a released property
+    removed, a released property that breaks by this same rule, and a property
+    newly in ``required``. A property that was not there is additive, and
+    breaks nobody, only when the object is open at the release and stays open
+    (``is_open`` on both sides); a new property in an object that was closed,
+    or has closed since, fails.
+
+    Everything else in a subschema is compared whole with ``constraints``:
+    every keyword except ``properties``, ``required`` and a walked ``items``,
+    so ``additionalProperties`` going from true to false, a changed ``type``,
+    ``enum``, ``pattern`` or ``minimum``, and a changed ``maxItems`` all fail.
+    A subschema without ``properties`` or ``items`` is compared whole.
+
+    A ``properties`` map is walked as property name to subschema and never
+    passed to ``constraints``, which drops annotation keywords from every
+    mapping: a property named ``description`` would otherwise vanish from the
+    comparison. Only ``properties`` and ``items`` are walked; a subschema under
+    any other keyword is compared whole.
+
+    Args:
+        was: The subschema as released.
+        now: The subschema as it is in this checkout.
+        path: The dotted path of this subschema from the root, empty at the
+            root, used to name each finding.
+
+    Returns:
+        One message per finding, each naming its path, empty when ``now`` is
+        compatible with ``was``.
+    """
+    label = path or "the schema"
+    if not (isinstance(was, dict) and isinstance(now, dict)):
+        return [] if constraints(was) == constraints(now) else [f"{label} constrains differently"]
+
+    walked = {"items"} if "items" in was and "items" in now else set()
+    if "properties" in was:
+        walked |= {"properties", "required"}
+    problems = []
+    if constraints({k: v for k, v in was.items() if k not in walked}) != constraints(
+        {k: v for k, v in now.items() if k not in walked}
+    ):
+        problems.append(f"{label} constrains differently")
+
+    if "items" in walked:
+        problems += breaking_changes(was["items"], now["items"], named(path, "items"))
+
+    if "properties" in walked:
+        problems += object_changes(was, now, path)
+    return problems
+
+
+def object_changes(was: dict[str, Any], now: dict[str, Any], path: str) -> list[str]:
+    """Return what makes an object's properties break somebody validating against ``was``.
+
+    Args:
+        was: The object subschema as released, which has ``properties``.
+        now: The same subschema as it is in this checkout.
+        path: The dotted path of the object from the root, empty at the root.
+
+    Returns:
+        One message per removed, newly required or incompatible property, and
+        per property added to an object that is not open on both sides.
+    """
+    problems: list[str] = []
+    was_properties: dict[str, Any] = was["properties"]
+    now_properties: dict[str, Any] = now.get("properties", {})
+    for name, released in was_properties.items():
+        if name in now_properties:
+            problems += breaking_changes(released, now_properties[name], named(path, name))
+        else:
+            problems.append(f"{named(path, name)} removed")
+    for name in sorted(set(now.get("required", [])) - set(was.get("required", []))):
+        problems.append(f"{named(path, name)} newly required")
+    for name in sorted(set(now_properties) - set(was_properties)):
+        if not is_open(was):
+            problems.append(f"{named(path, name)} added to a closed object")
+        elif not is_open(now):
+            problems.append(f"{named(path, name)} added to an object that is now closed")
+    return problems
+
+
 #: Every edit the old top-level-``type`` comparison waved through, each as the
 #: property this contract ships today and the version that breaks somebody.
 #: ``process_method``, ``origin_country``, ``name`` and ``variety`` are real
@@ -180,6 +291,198 @@ def test_an_annotation_or_a_respelling_is_not_a_change(
 ) -> None:
     """Refusing these would make the check a nuisance nobody trusts."""
     assert constraints(was) == constraints(now), edit
+
+
+def shape(
+    properties: dict[str, Any], required: tuple[str, ...] = (), additional: bool = True
+) -> dict[str, Any]:
+    """Build an object subschema, open unless ``additional`` is false."""
+    return {
+        "type": "object",
+        "required": list(required),
+        "additionalProperties": additional,
+        "properties": properties,
+    }
+
+
+#: ``price_history`` as it is released, the array of open objects that
+#: #56 first needed a property added to.
+POINT = {
+    "on": {"type": "string", "format": "date"},
+    "price_per_kg_eur_cents": {"type": ["integer", "null"], "description": "per kilogram"},
+    "available": {"type": ["boolean", "null"]},
+}
+POINT_REQUIRED = ("on", "price_per_kg_eur_cents", "available")
+
+
+def history(items: dict[str, Any]) -> dict[str, Any]:
+    """Build a root schema whose only property is the array ``price_history``."""
+    return shape({"price_history": {"type": "array", "maxItems": 50, "items": items}})
+
+
+def deep(inner: dict[str, Any]) -> dict[str, Any]:
+    """Build a root schema holding ``outer.inner`` two objects down."""
+    return shape({"outer": shape({"inner": inner})})
+
+
+#: Edits the nested rule permits, each as (was, now).
+NESTED_ADDITIVE = [
+    (
+        "a new optional property in an open nested object",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(
+            shape({**POINT, "price_minor": {"type": ["integer", "null"]}}, POINT_REQUIRED),
+        ),
+    ),
+    (
+        "a new optional property two levels deep",
+        deep(shape({"a": {"type": "string"}})),
+        deep(shape({"a": {"type": "string"}, "b": {"type": ["string", "null"]}})),
+    ),
+    (
+        "a new top-level property",
+        shape({"a": {"type": "string"}}),
+        shape({"a": {"type": "string"}, "b": {"type": "string"}}),
+    ),
+    (
+        "a description edited on a nested property",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(
+            shape(
+                {
+                    **POINT,
+                    "price_per_kg_eur_cents": {"type": ["integer", "null"], "description": "x"},
+                },
+                POINT_REQUIRED,
+            )
+        ),
+    ),
+    (
+        "a nested type listed in another order",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(shape({**POINT, "available": {"type": ["null", "boolean"]}}, POINT_REQUIRED)),
+    ),
+    (
+        "a description edited on a nested property named description",
+        deep(shape({"description": {"type": "string", "description": "old"}})),
+        deep(shape({"description": {"type": "string", "description": "new"}})),
+    ),
+]
+
+#: Edits the nested rule refuses, each as (was, now).
+NESTED_BREAKING = [
+    (
+        "a new nested property also made required",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(
+            shape(
+                {**POINT, "price_minor": {"type": ["integer", "null"]}},
+                (*POINT_REQUIRED, "price_minor"),
+            )
+        ),
+    ),
+    (
+        "a nested object closing to unknown fields",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(shape(POINT, POINT_REQUIRED, additional=False)),
+    ),
+    (
+        "a nested property's type narrowing",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(shape({**POINT, "available": {"type": "boolean"}}, POINT_REQUIRED)),
+    ),
+    (
+        "a nested property's enum narrowing",
+        deep(shape({"kind": {"type": "string", "enum": ["a", "b"]}})),
+        deep(shape({"kind": {"type": "string", "enum": ["a"]}})),
+    ),
+    (
+        "a nested property removed",
+        history(shape(POINT, POINT_REQUIRED)),
+        history(shape({k: v for k, v in POINT.items() if k != "available"}, POINT_REQUIRED[:2])),
+    ),
+    (
+        "a nested property named description retyped",
+        deep(shape({"description": {"type": "string"}})),
+        deep(shape({"description": {"type": "integer"}})),
+    ),
+    (
+        "a new property in a nested object closed at the tag",
+        deep(shape({"a": {"type": "string"}}, additional=False)),
+        deep(
+            shape(
+                {"a": {"type": "string"}, "b": {"type": "string"}},
+                additional=False,
+            )
+        ),
+    ),
+    (
+        "a new property in a nested object open at the tag but closed now",
+        deep(shape({"a": {"type": "string"}})),
+        deep(
+            shape(
+                {"a": {"type": "string"}, "b": {"type": "string"}},
+                additional=False,
+            )
+        ),
+    ),
+    (
+        "an array's maxItems lowered beside open items",
+        history(shape(POINT, POINT_REQUIRED)),
+        {
+            **history(shape(POINT, POINT_REQUIRED)),
+            "properties": {
+                "price_history": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": shape(POINT, POINT_REQUIRED),
+                }
+            },
+        },
+    ),
+    (
+        "a top-level property removed",
+        shape({"a": {"type": "string"}, "b": {"type": "string"}}),
+        shape({"a": {"type": "string"}}),
+    ),
+    (
+        "a top-level property retyped",
+        shape({"a": {"type": ["integer", "null"]}}),
+        shape({"a": {"type": "integer"}}),
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("edit", "was", "now"), NESTED_ADDITIVE, ids=[e[0] for e in NESTED_ADDITIVE]
+)
+def test_an_additive_edit_at_any_depth_is_compatible(
+    edit: str, was: dict[str, Any], now: dict[str, Any]
+) -> None:
+    """A property nothing required, in an object that stayed open, breaks nobody."""
+    assert breaking_changes(was, now) == [], edit
+
+
+@pytest.mark.parametrize(
+    ("edit", "was", "now"), NESTED_BREAKING, ids=[e[0] for e in NESTED_BREAKING]
+)
+def test_a_breaking_edit_at_any_depth_is_refused(
+    edit: str, was: dict[str, Any], now: dict[str, Any]
+) -> None:
+    """Each of these breaks a consumer or a producer however deep it sits."""
+    assert breaking_changes(was, now), edit
+
+
+def test_a_nested_finding_names_its_path() -> None:
+    """The message says which property, because a bare "price_history" is no help."""
+    was = history(shape(POINT, POINT_REQUIRED))
+    now = history(
+        shape(
+            {**POINT, "price_minor": {"type": ["integer", "null"]}},
+            (*POINT_REQUIRED, "price_minor"),
+        )
+    )
+    assert breaking_changes(was, now) == ["price_history.items.price_minor newly required"]
 
 
 # --- the schema and the dataclass are one contract, not two -------------------
@@ -386,16 +689,26 @@ def test_the_schema_is_still_compatible_with_the_released_one(event_type: str) -
     new wire version published on its own subject, which is what ``VERSION`` in
     ``subjects.py`` exists for.
 
-    **The rule: what a property constrains is frozen in both directions.**
-    Narrowing breaks the producers already sending values the schema now
-    refuses. Loosening breaks the consumers validating against the schema they
-    pinned — a shop with a three-letter country code is not something a
-    consumer compiled against ``^[A-Z]{2}$`` can suddenly be handed. Neither
-    side is cheaper than the other here, and both are free to fix the honest
-    way, because a new version runs beside the old one until the last consumer
-    moves. So this compares the whole subschema, and making a field nullable
-    needs a version bump too. Annotations are not part of it: ``description``,
-    ``title``, ``default`` and ``examples`` may be edited at any time.
+    **The rule, at the top level and again inside every object, the ``items``
+    of an array included: what a released property constrains is frozen in both
+    directions, and the set of properties may only grow.** Narrowing breaks the
+    producers already sending values the schema now refuses. Loosening breaks
+    the consumers validating against the schema they pinned: a shop with a
+    three-letter country code is not something a consumer compiled against
+    ``^[A-Z]{2}$`` can suddenly be handed. Neither side is cheaper than the
+    other here, and both are free to fix the honest way, because a new version
+    runs beside the old one until the last consumer moves. So this compares the
+    whole subschema of each released property, and making a field nullable
+    needs a version bump too.
+
+    Inside an object, a released property may not be removed or constrain
+    differently, and no property may become required. A new property that is
+    not required is additive, but only in an object that was open at the tag
+    (``additionalProperties`` absent or true) and is still open: consumers
+    keep the fields they know and ignore the rest. Closing an object, or adding
+    a property to one that is closed, is breaking. Annotations are not part of
+    any of it: ``description``, ``title``, ``default`` and ``examples`` may be
+    edited at any time. See ``breaking_changes``.
     """
     tag = released_tag()
     if tag is None:
@@ -405,20 +718,8 @@ def test_the_schema_is_still_compatible_with_the_released_one(event_type: str) -
         return
     now = load(SCHEMA_DIR / SCHEMA_FILES[event_type])
 
-    gone = set(was["properties"]) - set(now["properties"])
-    assert not gone, f"{event_type}: {sorted(gone)} removed since {tag}"
-
-    changed = {
-        name
-        for name, prop in was["properties"].items()
-        if constraints(now["properties"][name]) != constraints(prop)
-    }
-    assert not changed, (
-        f"{event_type}: {sorted(changed)} constrains a payload differently than at {tag}"
-    )
-
-    newly_required = set(now["required"]) - set(was["required"])
-    assert not newly_required, f"{event_type}: {sorted(newly_required)} newly required since {tag}"
+    problems = breaking_changes(was, now)
+    assert not problems, f"{event_type}: " + "; ".join(f"{p} since {tag}" for p in problems)
 
 
 def test_a_baseline_that_cannot_be_read_is_not_a_pass(monkeypatch: pytest.MonkeyPatch) -> None:
