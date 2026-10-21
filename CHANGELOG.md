@@ -7,6 +7,39 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.2.1 (untagged)
+
+Wire version `v2`, unchanged. This adds five optional fields to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read them
+can take them without touching code.
+
+- `description` is the shop's own prose about the coffee, with text the shop
+  repeats across many of its coffees (nutrition tables, FAQs, packaging) already
+  removed by the producer. It is the shop's text, not ours.
+- `origin_farm`, `origin_producer` and `origin_washing_station` are the farm,
+  the producer and the washing station, each as the shop names it, free text.
+- `altitude_max_m` is the upper end of the stated altitude in metres, beside
+  the existing `altitude_min_m`. It equals `altitude_min_m` when the shop states
+  a single height.
+
+Every one is a string (the altitude an integer) or `null`, with no further
+constraint. A missing field and a `null` one mean the same thing: the shop
+stated none, or the producer could not extract it.
+
+**A coffee that has not been republished keeps the message it was published
+with.** The stream keeps one message per coffee, so until the producer
+publishes that coffee again, its message has none of the five fields.
+
+This is untagged. No `v3.2.1` tag will be cut, so do not look for one. The
+release pull request sets the number and cuts the tag.
+
+**What a consumer has to do:** nothing to its code, unless it wants the fields,
+and then treat absent and `null` alike. A consumer that checks the contract's
+fields against what it stores fails that check on the pin move until it stores
+the five or names them as not stored. Today that is `coffee-api`
+(`tests/test_contract_fields.py`) and `coffee-cupper` (`tests/test_migrate.py`),
+which compare `dataclasses.fields(CoffeeState)` with their stored columns.
+
 ## 3.2.0 (2026-10-20)
 
 **This release is the untagged `3.1.1` and `3.1.2` below, read together.**

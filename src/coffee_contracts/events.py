@@ -97,7 +97,8 @@ class CoffeeState:
         variety: Cultivars, as the shop lists them.
         arabica_pct: The arabica share the shop states, 0 to 100; None when it says nothing.
         robusta_pct: The robusta share the shop states, 0 to 100; None when it says nothing.
-        altitude_min_m: The lower end of the stated altitude.
+        altitude_min_m: The lower end of the stated altitude, in metres. ``altitude_max_m`` is
+            the upper end.
         flavor_notes: Cup notes, as the shop wrote them.
         tasting_text: The shop's prose description of the cup.
         sca_score: The cupping score, when published.
@@ -120,6 +121,15 @@ class CoffeeState:
         pack_group_key: Opaque, compared for equality only: two listings of one shop share
             it when they are the same coffee in different pack sizes. Not a key across
             shops. None when the producer could not derive one.
+        description: The shop's own prose about the coffee, with text the shop repeats across
+            many of its coffees (nutrition tables, FAQs, packaging) already removed by the
+            producer. It is the shop's text, not ours. None when there is none.
+        origin_farm: The farm, as the shop names it, free text.
+        origin_producer: The producer, as the shop names it, free text.
+        origin_washing_station: The washing station, as the shop names it, free text.
+        altitude_max_m: The upper end of the stated altitude in metres. Equal to
+            ``altitude_min_m`` when the shop states a single height. None when the shop
+            states none.
     """
 
     site: str
@@ -153,6 +163,11 @@ class CoffeeState:
     images: list[str] = field(default_factory=list)
     price_history: list[PricePoint] = field(default_factory=list)
     pack_group_key: str | None = None
+    description: str | None = None
+    origin_farm: str | None = None
+    origin_producer: str | None = None
+    origin_washing_station: str | None = None
+    altitude_max_m: int | None = None
 
     @property
     def key(self) -> str:

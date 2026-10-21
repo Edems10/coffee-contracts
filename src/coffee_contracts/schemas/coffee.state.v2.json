@@ -39,6 +39,18 @@
     "roaster": { "type": ["string", "null"] },
     "origin_country": { "type": ["string", "null"], "pattern": "^[A-Z]{2}$" },
     "origin_region": { "type": ["string", "null"] },
+    "origin_farm": {
+      "type": ["string", "null"],
+      "description": "The farm, as the shop names it, free text. Absent or null means the shop names none."
+    },
+    "origin_producer": {
+      "type": ["string", "null"],
+      "description": "The producer, as the shop names it, free text. Absent or null means the shop names none."
+    },
+    "origin_washing_station": {
+      "type": ["string", "null"],
+      "description": "The washing station, as the shop names it, free text. Absent or null means the shop names none."
+    },
     "process_method": { "type": ["string", "null"] },
     "roast_level": { "type": ["string", "null"] },
     "roast_profile": { "type": ["string", "null"] },
@@ -56,8 +68,16 @@
       "description": "Share of robusta the shop states, in percent. Null means the shop stated nothing, which is not the same as 0."
     },
     "altitude_min_m": { "type": ["integer", "null"] },
+    "altitude_max_m": {
+      "type": ["integer", "null"],
+      "description": "The upper end of the stated altitude in metres. Equal to altitude_min_m when the shop states a single height. Absent or null means the shop states no altitude."
+    },
     "flavor_notes": { "type": "array", "items": { "type": "string" } },
     "tasting_text": { "type": ["string", "null"] },
+    "description": {
+      "type": ["string", "null"],
+      "description": "The shop's own prose about the coffee, with text the shop repeats across many of its coffees (nutrition tables, FAQs, packaging) already removed by the producer. It is the shop's text, not ours. Absent or null means there is none."
+    },
     "sca_score": { "type": ["number", "null"] },
     "weight_g": { "type": ["integer", "null"] },
     "price_minor": {

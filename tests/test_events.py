@@ -473,3 +473,74 @@ def test_a_pack_group_key_that_is_not_a_non_empty_string_is_refused(value: objec
 
     with pytest.raises(ContractError):
         check(payload)
+
+
+STORY_FIELDS: dict[str, object] = {
+    "description": "Příběh kávy z Etiopie.",
+    "origin_farm": "Finca X",
+    "origin_producer": "Ana",
+    "origin_washing_station": "Hambela",
+    "altitude_max_m": 2100,
+}
+
+
+@pytest.mark.parametrize(("name", "value"), list(STORY_FIELDS.items()))
+def test_a_story_field_survives_the_wire_unchanged(name: str, value: object) -> None:
+    coffee = a_coffee(altitude_min_m=1800, **{name: value})
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))[name] == value
+    assert getattr(coffee_from_json(to_json(coffee)), name) == value
+
+
+def test_all_the_story_fields_together_round_trip_to_an_equal_coffee() -> None:
+    coffee = a_coffee(altitude_min_m=1800, **STORY_FIELDS)
+
+    check(json.loads(to_json(coffee)))
+
+    assert coffee_from_json(to_json(coffee)) == coffee
+
+
+@pytest.mark.parametrize("name", list(STORY_FIELDS))
+def test_an_unset_story_field_is_null_on_the_wire(name: str) -> None:
+    coffee = a_coffee()
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))[name] is None
+    assert getattr(coffee_from_json(to_json(coffee)), name) is None
+
+
+def test_a_payload_without_the_story_fields_is_still_valid() -> None:
+    """An older producer does not send them, and absence reads as None."""
+    payload = json.loads(to_json(a_coffee()))
+    for name in STORY_FIELDS:
+        del payload[name]
+
+    check(payload)
+
+    restored = coffee_from_json(json.dumps(payload))
+    assert all(getattr(restored, name) is None for name in STORY_FIELDS)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("description", 5),
+        ("description", ["a"]),
+        ("origin_farm", []),
+        ("origin_farm", True),
+        ("origin_producer", 7),
+        ("origin_washing_station", {"a": 1}),
+        ("altitude_max_m", "2000"),
+        ("altitude_max_m", 2000.5),
+        ("altitude_max_m", True),
+    ],
+)
+def test_a_story_field_of_the_wrong_type_is_refused(name: str, value: object) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload[name] = value
+
+    with pytest.raises(ContractError):
+        check(payload)
