@@ -44,6 +44,22 @@ PRODUCT_KINDS: tuple[str, ...] = (
     "other",
 )
 
+#: The brewing methods a coffee may be listed as suiting, in the order
+#: ``coffee.state.v2.json`` lists them. A method outside the vocabulary is left out
+#: by the producer, never guessed, and a grind is not a method. Part of the contract:
+#: a test holds this tuple and the schema's enum to each other, and ``check`` refuses
+#: a method outside it rather than passing it through.
+BREWING_METHODS: tuple[str, ...] = (
+    "espresso",
+    "moka",
+    "filter",
+    "french_press",
+    "aeropress",
+    "turkish",
+    "automatic",
+    "cold_brew",
+)
+
 #: The most points a coffee's ``price_history`` carries. Enforced by
 #: ``coffee.state.v1.json`` as ``maxItems``, so a producer that sends more is
 #: refused by ``check`` rather than trimmed on its behalf.
@@ -134,6 +150,18 @@ class CoffeeState:
         altitude_max_m: The upper end of the stated altitude in metres. Equal to
             ``altitude_min_m`` when the shop states a single height. None when the shop
             states none. Not checked against ``altitude_min_m`` or for sign.
+        body: The body the shop states, on a 0 to 5 scale. A producer that reads a score
+            stated on another scale rescales it before sending, so the contract carries no
+            scale. 0 is a stated score, the lowest. None when the shop states none.
+        acidity: The acidity the shop states, on the same 0 to 5 scale as ``body``. None
+            when the shop states none.
+        sweetness: The sweetness the shop states, on the same 0 to 5 scale as ``body``.
+            None when the shop states none.
+        bitterness: The bitterness the shop states, on the same 0 to 5 scale as ``body``.
+            None when the shop states none.
+        brewing_methods: The methods the shop says the coffee suits, from
+            ``BREWING_METHODS``. Each appears at most once and the order carries no
+            meaning. Empty when the shop names none.
     """
 
     site: str
@@ -172,6 +200,11 @@ class CoffeeState:
     origin_producer: str | None = None
     origin_washing_station: str | None = None
     altitude_max_m: int | None = None
+    body: int | None = None
+    acidity: int | None = None
+    sweetness: int | None = None
+    bitterness: int | None = None
+    brewing_methods: list[str] = field(default_factory=list)
 
     @property
     def key(self) -> str:

@@ -7,6 +7,52 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.2.2 (untagged)
+
+Wire version `v2`, unchanged. This adds five optional fields to `coffee.state`
+and changes nothing that already exists, so a consumer that does not read them
+can take them without touching code.
+
+- `body`, `acidity`, `sweetness` and `bitterness` are the shop's stated
+  intensity of each, as a whole number from 0 to 5, **always on that scale**. A
+  producer that reads a score stated on another scale rescales it before
+  sending, so there is no scale field and a consumer never has to ask which one
+  it got. `0` is a stated score, the lowest, and is not "none"; a missing field
+  and a `null` one mean the shop states no score. A consumer that treats `0` as
+  falsy will drop real scores.
+- `brewing_methods` is the list of methods the shop says the coffee suits, from
+  a closed vocabulary exported as `BREWING_METHODS`: `espresso`, `moka`,
+  `filter`, `french_press`, `aeropress`, `turkish`, `automatic`, `cold_brew`.
+  The list is closed: **`check` refuses a method outside it**, so a producer
+  leaves out what it cannot map instead of guessing, and a grind is not a
+  method. Each method appears at most once (`uniqueItems`), so `check` also
+  refuses a repeat, and the order carries no meaning. An empty list, or a
+  missing field, means the shop names none; `CoffeeState` reads it back as `[]`.
+
+**`check` refuses a score outside 0 to 5, or one that is not a whole number**
+(`2.5`, `"3"`, `true`). Neither the dataclass nor `coffee_from_json` validates
+any of this, as they do not validate `product_kind` or `arabica_pct`: only
+`check` does, so a producer must call it before publishing. The constraints on
+`brewing_methods` can be added only now, before it is first tagged; after a
+tag, narrowing them would need a new wire version.
+
+**A coffee that has not been republished keeps the message it was published
+with.** The stream keeps one message per coffee, so until the producer
+publishes that coffee again, its message has none of the five fields.
+
+This is untagged. No `v3.2.2` tag will be cut, so do not look for one. The
+release pull request sets the number and cuts the tag.
+
+**What a consumer has to do:** nothing to its code, unless it wants the fields.
+Treat absent and `null` alike for the scores, read `0` as a score and not as
+missing, and treat an absent `brewing_methods` like `[]`. Do not expect a method
+outside the closed list: `check` refuses it, so it never arrives. A consumer that
+checks the contract's fields against what it stores fails that check on the pin
+move until it stores the five or names them as not stored. Today that is
+`coffee-api` (`tests/test_contract_fields.py`) and `coffee-cupper`
+(`tests/test_migrate.py`), which compare `dataclasses.fields(CoffeeState)` with
+their stored columns.
+
 ## 3.2.1 (untagged)
 
 Wire version `v2`, unchanged. This adds five optional fields to `coffee.state`

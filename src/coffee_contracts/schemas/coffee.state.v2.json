@@ -79,6 +79,39 @@
       "description": "The shop's own prose about the coffee, with text the shop repeats across many of its coffees (nutrition tables, FAQs, packaging) already removed by the producer. It is the shop's text, not ours. Absent or null means there is none. Null, not an empty string, says so."
     },
     "sca_score": { "type": ["number", "null"] },
+    "body": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 5,
+      "description": "The body the shop states, as a whole number from 0 to 5, always on that scale: a producer that reads a score stated on another scale rescales it before sending, so there is no scale field. 0 is a stated score, the lowest, not none. Absent or null means the shop states no body."
+    },
+    "acidity": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 5,
+      "description": "The acidity the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no acidity."
+    },
+    "sweetness": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 5,
+      "description": "The sweetness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no sweetness."
+    },
+    "bitterness": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 5,
+      "description": "The bitterness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no bitterness."
+    },
+    "brewing_methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["espresso", "moka", "filter", "french_press", "aeropress", "turkish", "automatic", "cold_brew"]
+      },
+      "uniqueItems": true,
+      "description": "The methods the shop says the coffee suits, from the closed vocabulary. A method outside it is left out by the producer, never guessed, and a grind is not a method. Each method appears at most once and the order carries no meaning. Absent or an empty list means the shop names none."
+    },
     "weight_g": { "type": ["integer", "null"] },
     "price_minor": {
       "type": ["integer", "null"],

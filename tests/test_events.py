@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from coffee_contracts import (
+    BREWING_METHODS,
     PRODUCT_KINDS,
     CoffeeState,
     ContractError,
@@ -541,6 +542,111 @@ def test_a_payload_without_the_story_fields_is_still_valid() -> None:
 def test_a_story_field_of_the_wrong_type_is_refused(name: str, value: object) -> None:
     payload = json.loads(to_json(a_coffee()))
     payload[name] = value
+
+    with pytest.raises(ContractError):
+        check(payload)
+
+
+SCORE_FIELDS = ("body", "acidity", "sweetness", "bitterness")
+
+
+def test_the_brewing_methods_are_the_schema_enum() -> None:
+    """The exported vocabulary and the schema's enum are one list, in one order."""
+    items = schema("coffee.state")["properties"]["brewing_methods"]["items"]
+
+    assert list(BREWING_METHODS) == items["enum"]
+
+
+@pytest.mark.parametrize("name", SCORE_FIELDS)
+@pytest.mark.parametrize("score", [0, 3, 5, None])
+def test_a_score_inside_the_scale_survives_the_wire(name: str, score: int | None) -> None:
+    coffee = a_coffee(**{name: score})
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))[name] == score
+    assert getattr(coffee_from_json(to_json(coffee)), name) == score
+
+
+@pytest.mark.parametrize("name", SCORE_FIELDS)
+@pytest.mark.parametrize("score", [-1, 6, 2.5, "3", True])
+def test_a_score_outside_the_scale_or_not_a_whole_number_is_refused(
+    name: str, score: object
+) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload[name] = score
+
+    with pytest.raises(ContractError):
+        check(payload)
+
+
+@pytest.mark.parametrize("name", SCORE_FIELDS)
+def test_an_unset_score_is_null_on_the_wire(name: str) -> None:
+    coffee = a_coffee()
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))[name] is None
+    assert getattr(coffee_from_json(to_json(coffee)), name) is None
+
+
+def test_the_brewing_methods_round_trip_in_order() -> None:
+    coffee = a_coffee(brewing_methods=["filter", "espresso"])
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))["brewing_methods"] == ["filter", "espresso"]
+    assert coffee_from_json(to_json(coffee)).brewing_methods == ["filter", "espresso"]
+
+
+@pytest.mark.parametrize("method", BREWING_METHODS)
+def test_every_brewing_method_is_accepted_alone(method: str) -> None:
+    check(json.loads(to_json(a_coffee(brewing_methods=[method]))))
+
+
+def test_all_the_taste_and_brewing_fields_together_round_trip_to_an_equal_coffee() -> None:
+    coffee = a_coffee(
+        body=4,
+        acidity=0,
+        sweetness=5,
+        bitterness=None,
+        brewing_methods=["moka", "cold_brew"],
+    )
+
+    check(json.loads(to_json(coffee)))
+
+    assert coffee_from_json(to_json(coffee)) == coffee
+
+
+def test_no_brewing_methods_is_an_empty_list_on_the_wire() -> None:
+    coffee = a_coffee()
+
+    check(json.loads(to_json(coffee)))
+
+    assert json.loads(to_json(coffee))["brewing_methods"] == []
+    assert coffee_from_json(to_json(coffee)).brewing_methods == []
+
+
+def test_a_payload_without_the_taste_and_brewing_fields_is_still_valid() -> None:
+    """An older producer does not send them, and absence reads as None or empty."""
+    payload = json.loads(to_json(a_coffee()))
+    for name in (*SCORE_FIELDS, "brewing_methods"):
+        del payload[name]
+
+    check(payload)
+
+    restored = coffee_from_json(json.dumps(payload))
+    assert all(getattr(restored, name) is None for name in SCORE_FIELDS)
+    assert restored.brewing_methods == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    [["grind"], ["Espresso"], ["espresso", "espresso"], "espresso", [1]],
+)
+def test_brewing_methods_outside_the_vocabulary_or_repeated_are_refused(value: object) -> None:
+    payload = json.loads(to_json(a_coffee()))
+    payload["brewing_methods"] = value
 
     with pytest.raises(ContractError):
         check(payload)
