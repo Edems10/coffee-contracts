@@ -139,7 +139,11 @@ def breaking_changes(was: object, now: object, path: str = "") -> list[str]:
     every keyword except ``properties``, ``required`` and a walked ``items``,
     so ``additionalProperties`` going from true to false, a changed ``type``,
     ``enum``, ``pattern`` or ``minimum``, and a changed ``maxItems`` all fail.
-    A subschema without ``properties`` or ``items`` is compared whole.
+    A subschema without ``properties`` or ``items`` is compared whole. The root
+    is held to the same rule, so its own keywords (``$id``, ``type``,
+    ``allOf``) are compared too, where only its ``properties`` and ``required``
+    were before. An object with ``properties`` that omits ``additionalProperties``
+    is read as one that says ``true``, which is what omitting it means.
 
     A ``properties`` map is walked as property name to subschema and never
     passed to ``constraints``, which drops annotation keywords from every
@@ -165,9 +169,10 @@ def breaking_changes(was: object, now: object, path: str = "") -> list[str]:
     if "properties" in was:
         walked |= {"properties", "required"}
     problems = []
-    if constraints({k: v for k, v in was.items() if k not in walked}) != constraints(
-        {k: v for k, v in now.items() if k not in walked}
-    ):
+    defaults = {"additionalProperties": True} if "properties" in was else {}
+    if constraints(
+        {**defaults, **{k: v for k, v in was.items() if k not in walked}}
+    ) != constraints({**defaults, **{k: v for k, v in now.items() if k not in walked}}):
         problems.append(f"{label} constrains differently")
 
     if "items" in walked:
@@ -340,6 +345,11 @@ NESTED_ADDITIVE = [
         deep(shape({"a": {"type": "string"}, "b": {"type": ["string", "null"]}})),
     ),
     (
+        "additionalProperties spelled true where it was absent",
+        {"type": "object", "properties": {"a": {"type": "string"}}},
+        shape({"a": {"type": "string"}}, ()),
+    ),
+    (
         "a new top-level property",
         shape({"a": {"type": "string"}}),
         shape({"a": {"type": "string"}, "b": {"type": "string"}}),
@@ -439,6 +449,11 @@ NESTED_BREAKING = [
                 }
             },
         },
+    ),
+    (
+        "an object that omitted additionalProperties closing",
+        {"type": "object", "properties": {"a": {"type": "string"}}},
+        shape({"a": {"type": "string"}}, (), additional=False),
     ),
     (
         "a top-level property removed",

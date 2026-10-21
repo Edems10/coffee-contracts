@@ -25,6 +25,11 @@ depth instead of at the top level only. Inside any object, including the
 - everything else in the object stays frozen: closing it, retyping `items`, a
   changed `type`, `enum`, `pattern`, `minimum` or `maxItems`.
 
+The root schema is held to the same rule, so its own keywords (`$id`, `type`,
+`allOf`) are now compared as well, where only its `properties` and `required`
+were before. An object that omits `additionalProperties` is read as one that
+says `true`.
+
 Until now the whole `price_history` subschema was compared as one value, so
 adding an optional property to its items failed the check as a change to
 `price_history`, although no consumer that keeps the fields it knows could
