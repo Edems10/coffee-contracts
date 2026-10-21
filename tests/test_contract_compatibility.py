@@ -301,7 +301,16 @@ def test_an_annotation_or_a_respelling_is_not_a_change(
 def shape(
     properties: dict[str, Any], required: tuple[str, ...] = (), additional: bool = True
 ) -> dict[str, Any]:
-    """Build an object subschema, open unless ``additional`` is false."""
+    """Build an object subschema.
+
+    Args:
+        properties: The object's ``properties``, property name to subschema.
+        required: The names the object lists in ``required``.
+        additional: The object's ``additionalProperties``; false closes it.
+
+    Returns:
+        An object subschema with ``type`` ``object`` and the given keywords.
+    """
     return {
         "type": "object",
         "required": list(required),
@@ -321,12 +330,28 @@ POINT_REQUIRED = ("on", "price_per_kg_eur_cents", "available")
 
 
 def history(items: dict[str, Any]) -> dict[str, Any]:
-    """Build a root schema whose only property is the array ``price_history``."""
+    """Build a root schema whose only property is the array ``price_history``.
+
+    Args:
+        items: The subschema of the array's ``items``.
+
+    Returns:
+        An open root object schema with one property, an array of at most 50
+        ``items``.
+    """
     return shape({"price_history": {"type": "array", "maxItems": 50, "items": items}})
 
 
 def deep(inner: dict[str, Any]) -> dict[str, Any]:
-    """Build a root schema holding ``outer.inner`` two objects down."""
+    """Build a root schema holding ``outer.inner`` two objects down.
+
+    Args:
+        inner: The subschema of the property ``inner``, inside the object
+            property ``outer``.
+
+    Returns:
+        An open root object schema with one property, ``outer``.
+    """
     return shape({"outer": shape({"inner": inner})})
 
 
