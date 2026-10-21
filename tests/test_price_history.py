@@ -218,6 +218,12 @@ def test_a_price_history_that_is_not_a_list_is_refused() -> None:
 
 
 def a_priced_series() -> list[PricePoint]:
+    """Two points for a coffee whose shop raised its price while EUR/kg stood still.
+
+    Returns:
+        Two ``PricePoint`` values, 24900 then 26900 CZK for 250 g, both carrying
+        3965 euro cents per kilogram.
+    """
     return [
         PricePoint(
             on=date(2026, 9, 1),
@@ -239,13 +245,31 @@ def a_priced_series() -> list[PricePoint]:
 
 
 def a_payload_with(points: list[dict[str, object]]) -> dict[str, object]:
+    """Build a ``coffee.state`` payload whose ``price_history`` is the given raw points.
+
+    Args:
+        points: The ``price_history`` elements as JSON, written by the caller so a test
+            can spell keys and values the dataclass would not allow.
+
+    Returns:
+        The decoded wire payload of ``a_coffee()`` with ``price_history`` replaced.
+    """
     payload: dict[str, object] = json.loads(to_json(a_coffee()))
     payload["price_history"] = points
     return payload
 
 
 def v320_series(count: int) -> list[dict[str, object]]:
-    """The series ``a_long_series`` built at v3.2.0, as the three-key JSON it was."""
+    """Build the series ``a_long_series`` made at v3.2.0, as the three-key JSON it was.
+
+    Args:
+        count: How many points, one per day from 1 January 2026, each price one euro
+            above the last.
+
+    Returns:
+        The points as raw dicts holding only ``on``, ``price_per_kg_eur_cents`` and
+        ``available``.
+    """
     first = date(2026, 1, 1).toordinal()
     return [
         {
