@@ -7,6 +7,35 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.2.3 (untagged)
+
+Wire version `v2`, unchanged. Nothing in the package and nothing on the wire
+changed: this edits `tests/test_contract_compatibility.py` only, so a consumer
+has nothing to do.
+
+The compatibility check against the last release now applies one rule at every
+depth instead of at the top level only. Inside any object, including the
+`items` of an array such as `price_history`:
+
+- a released property may not be removed or constrain a payload differently,
+  and no property may become required;
+- a new property that is not required is additive, but only in an object that
+  was open at the tag (`additionalProperties` absent or `true`) and is still
+  open;
+- everything else in the object stays frozen: closing it, retyping `items`, a
+  changed `type`, `enum`, `pattern`, `minimum` or `maxItems`.
+
+The root schema is held to the same rule, so its own keywords (`$id`, `type`,
+`allOf`) are now compared as well, where only its `properties` and `required`
+were before. An object that omits `additionalProperties` is read as one that
+says `true`.
+
+Until now the whole `price_history` subschema was compared as one value, so
+adding an optional property to its items failed the check as a change to
+`price_history`, although no consumer that keeps the fields it knows could
+notice it. A failure now names its path, for example
+`price_history.items.price_minor newly required`.
+
 ## 3.2.2 (untagged)
 
 Wire version `v2`, unchanged. This adds five optional fields to `coffee.state`
