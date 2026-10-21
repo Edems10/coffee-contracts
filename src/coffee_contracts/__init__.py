@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from coffee_contracts.events import (
+    BREWING_METHODS,
     COFFEE_EMBEDDING,
     COFFEE_STATE,
     MAX_PRICE_HISTORY,
@@ -14,9 +15,10 @@ from coffee_contracts.streams import CATALOGUE, EMBEDDINGS, STREAMS, Stream
 from coffee_contracts.subjects import VERSION, SubjectError, catalogue, embedding
 from coffee_contracts.validate import ContractError, check, schema
 
-__version__ = "3.2.1"
+__version__ = "3.2.2"
 
 __all__ = [
+    "BREWING_METHODS",
     "CATALOGUE",
     "COFFEE_EMBEDDING",
     "COFFEE_STATE",
