@@ -15,7 +15,7 @@ from coffee_contracts.streams import CATALOGUE, EMBEDDINGS, STREAMS, Stream
 from coffee_contracts.subjects import VERSION, SubjectError, catalogue, embedding
 from coffee_contracts.validate import ContractError, check, schema
 
-__version__ = "3.2.4"
+__version__ = "3.3.0"
 
 __all__ = [
     "BREWING_METHODS",
