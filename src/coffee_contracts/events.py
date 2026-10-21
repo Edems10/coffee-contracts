@@ -61,7 +61,7 @@ BREWING_METHODS: tuple[str, ...] = (
 )
 
 #: The most points a coffee's ``price_history`` carries. Enforced by
-#: ``coffee.state.v1.json`` as ``maxItems``, so a producer that sends more is
+#: ``coffee.state.v2.json`` as ``maxItems``, so a producer that sends more is
 #: refused by ``check`` rather than trimmed on its behalf.
 MAX_PRICE_HISTORY = 50
 
@@ -70,22 +70,34 @@ MAX_PRICE_HISTORY = 50
 class PricePoint:
     """One change in a coffee's price, not one day of it.
 
-    A point is emitted only where ``(price_per_kg_eur_cents, available)`` differs from
-    the day before, so a coffee priced the same for a year is one point. The
-    last point of a series holds until the coffee's ``observed_at``, which is
-    what tells a price that has not moved since a date apart from a crawl that
-    stopped on that date.
+    A point starts on a day when the shop's own price (``price_minor``,
+    ``currency``), weight (``weight_g``) or availability differs from the day
+    before, so a coffee the shop priced the same for a year is one point. A change
+    in ``price_per_kg_eur_cents`` alone does not start a point: a CZK price is
+    converted at each day's ČNB rate, so that figure moves almost daily while the
+    shop's price stands still. A point carries ``price_per_kg_eur_cents`` as it
+    was on its first day, ``on``. The last point of a series holds until the
+    coffee's ``observed_at``, which is what tells a price that has not moved since
+    a date apart from a crawl that stopped on that date.
 
     Attributes:
         on: The first day these values held.
-        price_per_kg_eur_cents: The comparable price per kilogram from that day, in euro
+        price_per_kg_eur_cents: The comparable price per kilogram on that day, in euro
             cents, as ``CoffeeState.price_per_kg_eur_cents`` counts it; None when unpriced.
         available: Whether the shop said it was in stock that day; None when it said nothing.
+        price_minor: The shop's own price of the package on that day, as
+            ``CoffeeState.price_minor`` counts it; None when unknown.
+        currency: The ISO 4217 code of the currency ``price_minor`` is counted in; None
+            when unknown.
+        weight_g: The net weight that price buys, in grams; None when unknown.
     """
 
     on: date
     price_per_kg_eur_cents: int | None
     available: bool | None
+    price_minor: int | None = None
+    currency: str | None = None
+    weight_g: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,9 +142,10 @@ class CoffeeState:
         decaf: True if the shop says decaf, False if caffeinated, None if it said nothing.
         images: The shop's own picture URLs, in the order the page lists them; empty
             when it published none.
-        price_history: The price changes, oldest first, one ``PricePoint`` per change.
-            Capped at ``MAX_PRICE_HISTORY`` points, oldest dropped first. The cap
-            loses no fact about when the coffee started, which ``first_seen_at`` keeps.
+        price_history: The price changes, oldest first, one ``PricePoint`` per change of the
+            shop's price, weight or availability. Capped at ``MAX_PRICE_HISTORY`` points,
+            oldest dropped first. The cap loses no fact about when the coffee started,
+            which ``first_seen_at`` keeps.
             Empty when the producer recorded no series.
         pack_group_key: Opaque, compared for equality only: two listings of one shop share
             it when they are the same coffee in different pack sizes. Not a key across
@@ -307,21 +320,29 @@ def _point(payload: dict[str, Any]) -> PricePoint:
     """Build one ``PricePoint`` off the wire, refusing a float price as ``_build`` does.
 
     Args:
-        payload: One element of ``price_history``, as the JSON decoded it.
+        payload: One element of ``price_history``, as the JSON decoded it. A missing
+            ``price_minor``, ``currency`` or ``weight_g`` reads as None.
 
     Returns:
         The point, with ``on`` as a ``date``.
 
     Raises:
-        ValueError: When ``price_per_kg_eur_cents`` is not a whole number, or the
-            date cannot be parsed.
+        ValueError: When ``price_per_kg_eur_cents`` or ``price_minor`` is not a whole
+            number, or the date cannot be parsed.
     """
     cents = payload["price_per_kg_eur_cents"]
     if cents is not None and type(cents) is not int:
         message = f"price_per_kg_eur_cents must be a whole number of cents, got {cents!r}"
         raise ValueError(message)
+    price_minor = payload.get("price_minor")
+    if price_minor is not None and type(price_minor) is not int:
+        message = f"price_minor must be a whole number of minor units, got {price_minor!r}"
+        raise ValueError(message)
     return PricePoint(
         on=date.fromisoformat(payload["on"]),
         price_per_kg_eur_cents=cents,
         available=payload["available"],
+        price_minor=price_minor,
+        currency=payload.get("currency"),
+        weight_g=payload.get("weight_g"),
     )

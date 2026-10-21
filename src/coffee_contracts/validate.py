@@ -177,12 +177,12 @@ def price_history_problem(payload: dict[str, Any]) -> str | None:
 
     The schema checks each point's shape and the length cap. The schema cannot
     refuse a float spelling of a whole number, because JSON Schema's ``integer``
-    admits ``2450.0``, so each point's ``price_per_kg_eur_cents`` is held to
-    ``int`` here, as the top-level money fields are. The rules between points
-    need the whole series at once: the dates ascend strictly, no two consecutive
-    points carry the same price and availability, since a point is a change, and
-    the last point is not after ``observed_at``. Run this only on a payload the
-    schema has already passed.
+    admits ``2450.0``, so each point's ``price_per_kg_eur_cents`` and
+    ``price_minor`` are held to ``int`` here, as the top-level money fields are.
+    The rules between points need the whole series at once: the dates ascend
+    strictly, no two consecutive points carry identical values, since a point is
+    a change, and the last point is not after ``observed_at``. Run this only on a
+    payload the schema has already passed.
 
     Args:
         payload: The decoded ``coffee.state`` body, with ``observed_at`` and
@@ -200,6 +200,12 @@ def price_history_problem(payload: dict[str, Any]) -> str | None:
                 f"price_history[{index}] price_per_kg_eur_cents must be a whole number "
                 f"of cents, got {cents!r}"
             )
+        price_minor = point.get("price_minor")
+        if price_minor is not None and type(price_minor) is not int:
+            return (
+                f"price_history[{index}] price_minor must be a whole number "
+                f"of minor units, got {price_minor!r}"
+            )
     for before, after in itertools.pairwise(series):
         if date.fromisoformat(after["on"]) <= date.fromisoformat(before["on"]):
             return f"price_history is not in date order at {after['on']}"
@@ -213,15 +219,24 @@ def price_history_problem(payload: dict[str, Any]) -> str | None:
 
 
 def _same_price(before: dict[str, Any], after: dict[str, Any]) -> bool:
-    """Whether two points carry the same price and availability.
+    """Whether two points carry identical values.
 
     Args:
-        before: The earlier point, as the schema shaped it, with integer cents.
-        after: The later point, as the schema shaped it, with integer cents.
+        before: The earlier point, as the schema shaped it, with integer money.
+        after: The later point, as the schema shaped it, with integer money.
 
     Returns:
-        True when the availability is equal and the cents are equal. Two nulls
-        are equal.
+        True when ``price_per_kg_eur_cents``, ``available``, ``price_minor``,
+        ``currency`` and ``weight_g`` are all equal. An absent key counts as null,
+        and two nulls are equal.
     """
-    same_price = before["price_per_kg_eur_cents"] == after["price_per_kg_eur_cents"]
-    return bool(same_price and before["available"] == after["available"])
+    return all(
+        before.get(key) == after.get(key)
+        for key in (
+            "price_per_kg_eur_cents",
+            "available",
+            "price_minor",
+            "currency",
+            "weight_g",
+        )
+    )
