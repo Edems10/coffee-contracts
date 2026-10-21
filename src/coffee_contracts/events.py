@@ -153,6 +153,7 @@ class CoffeeState:
         body: The body the shop states, on a 0 to 5 scale. A producer that reads a score
             stated on another scale rescales it before sending, so the contract carries no
             scale. 0 is a stated score, the lowest. None when the shop states none.
+            ``3.0`` passes ``check`` as an integer and is read back as a float.
         acidity: The acidity the shop states, on the same 0 to 5 scale as ``body``. None
             when the shop states none.
         sweetness: The sweetness the shop states, on the same 0 to 5 scale as ``body``.
@@ -161,7 +162,8 @@ class CoffeeState:
             None when the shop states none.
         brewing_methods: The methods the shop says the coffee suits, from
             ``BREWING_METHODS``. Each appears at most once and the order carries no
-            meaning. Empty when the shop names none.
+            meaning. Empty when the shop names none; a producer sends ``[]``, never None,
+            because ``check`` refuses null.
     """
 
     site: str

@@ -30,9 +30,13 @@ can take them without touching code.
   missing field, means the shop names none; `CoffeeState` reads it back as `[]`.
 
 **`check` refuses a score outside 0 to 5, or one that is not a whole number**
-(`2.5`, `"3"`, `true`). Neither the dataclass nor `coffee_from_json` validates
-any of this, as they do not validate `product_kind` or `arabica_pct`: only
-`check` does, so a producer must call it before publishing. The constraints on
+(`2.5`, `"3"`, `true`). Like `altitude_max_m`, a score of `3.0` passes `check` as
+JSON Schema's `integer` and `coffee_from_json` reads it back as the float `3.0`.
+A producer sends `[]`, never `null`, for `brewing_methods`: `check` refuses
+`null`, although `coffee_from_json` would read it as `None`. Neither the
+dataclass nor `coffee_from_json` validates any of this, as they do not validate
+`product_kind` or `arabica_pct`: only `check` does, so a producer must call it
+before publishing. The constraints on
 `brewing_methods` can be added only now, before it is first tagged; after a
 tag, narrowing them would need a new wire version.
 
@@ -46,12 +50,21 @@ release pull request sets the number and cuts the tag.
 **What a consumer has to do:** nothing to its code, unless it wants the fields.
 Treat absent and `null` alike for the scores, read `0` as a score and not as
 missing, and treat an absent `brewing_methods` like `[]`. Do not expect a method
-outside the closed list: `check` refuses it, so it never arrives. A consumer that
-checks the contract's fields against what it stores fails that check on the pin
-move until it stores the five or names them as not stored. Today that is
-`coffee-api` (`tests/test_contract_fields.py`) and `coffee-cupper`
-(`tests/test_migrate.py`), which compare `dataclasses.fields(CoffeeState)` with
-their stored columns.
+outside the closed list: `check` refuses it, so it never arrives. Three
+consumers read `CoffeeState` as a whole, and one does not:
+
+- `coffee-aggregator`: its outbox selects every `CoffeeState` field as a column
+  of its `coffee` table (`STATE_FIELDS`, `_EXPRESSION_FOR` in
+  `sinks/outbox.py`), and `tests/test_outbox.py::test_every_state_expression_reads_a_column_the_coffee_table_has`
+  fails on the pin move until each of the five names has a column or an
+  `_EXPRESSION_FOR` entry. `brewing_methods` also goes in `_LIST_FIELDS`, so a
+  null column reads back as `[]`.
+- `coffee-api` (`tests/test_contract_fields.py`) and `coffee-cupper`
+  (`tests/test_migrate.py`) compare `dataclasses.fields(CoffeeState)` with their
+  stored columns, and fail that check until they store the five names or name
+  them as not stored.
+- `coffee-broker` is unaffected: it takes streams and subjects from the
+  contract and never reads `CoffeeState`.
 
 ## 3.2.1 (untagged)
 

@@ -83,25 +83,25 @@
       "type": ["integer", "null"],
       "minimum": 0,
       "maximum": 5,
-      "description": "The body the shop states, as a whole number from 0 to 5, always on that scale: a producer that reads a score stated on another scale rescales it before sending, so there is no scale field. 0 is a stated score, the lowest, not none. Absent or null means the shop states no body."
+      "description": "The body the shop states, as a whole number from 0 to 5, always on that scale: a producer that reads a score stated on another scale rescales it before sending, so there is no scale field. 0 is a stated score, the lowest, not none. Absent or null means the shop states no body. A whole-valued 3.0 passes as an integer."
     },
     "acidity": {
       "type": ["integer", "null"],
       "minimum": 0,
       "maximum": 5,
-      "description": "The acidity the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no acidity."
+      "description": "The acidity the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no acidity. A whole-valued 3.0 passes as an integer."
     },
     "sweetness": {
       "type": ["integer", "null"],
       "minimum": 0,
       "maximum": 5,
-      "description": "The sweetness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no sweetness."
+      "description": "The sweetness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no sweetness. A whole-valued 3.0 passes as an integer."
     },
     "bitterness": {
       "type": ["integer", "null"],
       "minimum": 0,
       "maximum": 5,
-      "description": "The bitterness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no bitterness."
+      "description": "The bitterness the shop states, as a whole number from 0 to 5, on the same scale as body. 0 is a stated score, the lowest, not none. Absent or null means the shop states no bitterness. A whole-valued 3.0 passes as an integer."
     },
     "brewing_methods": {
       "type": "array",
@@ -110,7 +110,7 @@
         "enum": ["espresso", "moka", "filter", "french_press", "aeropress", "turkish", "automatic", "cold_brew"]
       },
       "uniqueItems": true,
-      "description": "The methods the shop says the coffee suits, from the closed vocabulary. A method outside it is left out by the producer, never guessed, and a grind is not a method. Each method appears at most once and the order carries no meaning. Absent or an empty list means the shop names none."
+      "description": "The methods the shop says the coffee suits, from the closed vocabulary. A method outside it is left out by the producer, never guessed, and a grind is not a method. Each method appears at most once and the order carries no meaning. An empty list or absent means the shop names none. A producer sends [], never null: null is refused."
     },
     "weight_g": { "type": ["integer", "null"] },
     "price_minor": {
