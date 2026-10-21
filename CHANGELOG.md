@@ -7,6 +7,49 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.2.4 (untagged)
+
+Wire version `v2`, unchanged. A price point gains three optional fields and the
+rule for when a point starts changes. Nothing that was valid at `v3.2.0` is
+refused now, and a consumer that does not read `price_history` has nothing to do.
+
+- **New fields on a point.** `PricePoint` gains `price_minor`, `currency` and
+  `weight_g`, after `available`, each defaulting to None. They mean what the
+  `CoffeeState` fields of the same names mean, on the point's first day: the
+  shop's own price of the package as a count of the minor unit of `currency`,
+  its ISO 4217 code, and the net weight that price buys. None, null and absent
+  all mean unknown. In the schema they are optional properties of the open
+  `price_history.items` object, with `required` unchanged
+  (`on`, `price_per_kg_eur_cents`, `available`) and no `pattern` or `minimum`,
+  like the top-level fields of the same names.
+- **The point rule.** A point now starts on a day when the shop's own price
+  (`price_minor`, `currency`), weight (`weight_g`) or availability differs from
+  the day before. A change in `price_per_kg_eur_cents` alone no longer starts
+  one. A CZK price is converted at each day's ČNB rate, so the euro-per-kilogram
+  figure moves almost daily while the shop's price stands still, and a point per
+  move would fill the 50-point cap with a coffee whose shelf price never changed.
+- **What the EUR/kg figure on a point is.** It is the figure on the point's
+  first day (`on`). It may stand across the whole life of the point while the
+  real converted figure drifts, so it is not what the coffee cost in euros on
+  a later day inside that point; the shop's price is `price_minor` and
+  `currency`.
+- **What `check` accepts and refuses.** Two consecutive points are a repeat,
+  refused with "a point is a change, not a day", only when every value they carry
+  is equal: `price_per_kg_eur_cents`, `available`, `price_minor`, `currency` and
+  `weight_g`, an absent key counting as null. So `check` now accepts consecutive
+  points equal in euro-per-kilogram when the shop's price, weight or currency
+  differs, and refuses nothing it accepted at `v3.2.0`: a series of three-key
+  points reads and validates as before, with the new fields None. Each point's
+  `price_minor` must be a JSON integer, as its `price_per_kg_eur_cents` already
+  is, so `2450.0` is refused by `check` and by `coffee_from_json`. Dates still
+  ascend strictly, the last point is still not after `observed_at`, and a series
+  is still at most `MAX_PRICE_HISTORY` (50) points.
+- **Who could observe it.** The only producer, `coffee-aggregator`, sends
+  `price_history: []` today (`jsonb_build_array()` in `sinks/outbox.py` on its
+  `main`; coffee-web#226), so no series on the wire has the old rule's shape or
+  the new one's. A consumer has to do nothing unless it reads the series; one
+  that decodes points keeping only the fields it knows ignores the new keys.
+
 ## 3.2.3 (untagged)
 
 Wire version `v2`, unchanged. Nothing in the package and nothing on the wire

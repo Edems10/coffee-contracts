@@ -132,7 +132,7 @@
     "price_history": {
       "type": "array",
       "maxItems": 50,
-      "description": "The coffee's price changes, oldest first, one point per change: a point is emitted only where price_per_kg_eur_cents or available differs from the day before, so a coffee priced the same for a year is one point. The last point holds until observed_at. At most 50 points; a producer trims the oldest before sending, and a longer series is refused. first_seen_at still says when the coffee appeared. Absent and an empty list mean the same thing: the producer recorded no series. Dates must be in strictly ascending order and no two consecutive points may carry the same price and availability; both are checked by the contract's check function, not by this schema.",
+      "description": "The coffee's price changes, oldest first, one point per change. A point starts on a day when the shop's own price (price_minor, currency), weight (weight_g) or availability differs from the day before, so a coffee the shop priced the same for a year is one point. A change in price_per_kg_eur_cents alone does not start a point: a CZK price is converted at each day's ČNB rate, so that figure moves almost daily while the shop's price stands still. A point still carries price_per_kg_eur_cents as it was on its first day. The last point holds until observed_at. At most 50 points; a producer trims the oldest before sending, and a longer series is refused. first_seen_at still says when the coffee appeared. Absent and an empty list mean the same thing: the producer recorded no series. Dates must be in strictly ascending order and no two consecutive points may carry identical values; both are checked by the contract's check function, not by this schema.",
       "items": {
         "type": "object",
         "required": ["on", "price_per_kg_eur_cents", "available"],
@@ -143,7 +143,19 @@
             "type": ["integer", "null"],
             "description": "The comparable price per kilogram in euro cents, a JSON integer as the top-level field is. Null means unpriced that day."
           },
-          "available": { "type": ["boolean", "null"] }
+          "available": { "type": ["boolean", "null"] },
+          "price_minor": {
+            "type": ["integer", "null"],
+            "description": "The shop's own price of the package on the point's first day, as a count of the minor unit of currency, a JSON integer as the top-level field is. Null or absent means unknown."
+          },
+          "currency": {
+            "type": ["string", "null"],
+            "description": "The ISO 4217 code of the currency price_minor is counted in. Null or absent means unknown."
+          },
+          "weight_g": {
+            "type": ["integer", "null"],
+            "description": "The net weight that price buys, in grams, on the point's first day. Null or absent means unknown."
+          }
         }
       }
     },
