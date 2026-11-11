@@ -159,6 +159,40 @@
         }
       }
     },
+    "pack_price_history": {
+      "type": "array",
+      "maxItems": 12,
+      "description": "One price history per pack the shop currently offers within this listing, empty when fewer than two packs are offered. Each series uses price_history's change-point rule, oldest first, keeping the newest 50 points; its last point holds until observed_at. Prices are those offered for that pack, never inferred from another pack's price per kilogram.",
+      "items": {
+        "type": "array",
+        "maxItems": 50,
+        "items": {
+          "type": "object",
+          "required": ["on", "price_per_kg_eur_cents", "available"],
+          "additionalProperties": true,
+          "properties": {
+            "on": { "type": "string", "format": "date" },
+            "price_per_kg_eur_cents": {
+              "type": ["integer", "null"],
+              "description": "The comparable price per kilogram in euro cents, a JSON integer as the top-level field is. Null means unpriced that day."
+            },
+            "available": { "type": ["boolean", "null"] },
+            "price_minor": {
+              "type": ["integer", "null"],
+              "description": "The shop's own price of the package on the point's first day, as a count of the minor unit of currency, a JSON integer as the top-level field is. Null or absent means unknown."
+            },
+            "currency": {
+              "type": ["string", "null"],
+              "description": "The ISO 4217 code of the currency price_minor is counted in. Null or absent means unknown."
+            },
+            "weight_g": {
+              "type": ["integer", "null"],
+              "description": "The net weight that price buys, in grams, on the point's first day. Null or absent means unknown."
+            }
+          }
+        }
+      }
+    },
     "pack_group_key": {
       "type": ["string", "null"],
       "minLength": 1,

@@ -142,11 +142,17 @@ class CoffeeState:
         decaf: True if the shop says decaf, False if caffeinated, None if it said nothing.
         images: The shop's own picture URLs, in the order the page lists them; empty
             when it published none.
-        price_history: The price changes, oldest first, one ``PricePoint`` per change of the
-            shop's price, weight or availability. Capped at ``MAX_PRICE_HISTORY`` points,
+        price_history: The stored pack's price changes, oldest first, one ``PricePoint``
+            per change of the shop's price, weight or availability. Capped at
+            ``MAX_PRICE_HISTORY`` points,
             oldest dropped first. The cap loses no fact about when the coffee started,
             which ``first_seen_at`` keeps.
             Empty when the producer recorded no series.
+        pack_price_history: One series per pack currently offered within this listing;
+            empty when fewer than two packs are offered. Each follows ``price_history``'s
+            change rule, oldest first, keeping the newest 50 points; the last holds until
+            ``observed_at``. Prices are those offered for each pack, never inferred from
+            another pack.
         pack_group_key: Opaque, compared for equality only: two listings of one shop share
             it when they are the same coffee in different pack sizes. Not a key across
             shops. None when the producer could not derive one.
@@ -209,6 +215,7 @@ class CoffeeState:
     decaf: bool | None = None
     images: list[str] = field(default_factory=list)
     price_history: list[PricePoint] = field(default_factory=list)
+    pack_price_history: list[list[PricePoint]] = field(default_factory=list)
     pack_group_key: str | None = None
     description: str | None = None
     origin_farm: str | None = None
@@ -313,6 +320,10 @@ def _build(cls: type[CoffeeState], payload: dict[str, Any]) -> CoffeeState:
             raise ValueError(message)
     if "price_history" in known:
         known["price_history"] = [_point(item) for item in known["price_history"]]
+    if "pack_price_history" in known:
+        known["pack_price_history"] = [
+            [_point(item) for item in series] for series in known["pack_price_history"]
+        ]
     return cls(**known)
 
 

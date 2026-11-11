@@ -173,7 +173,7 @@ def check(payload: dict[str, Any]) -> None:
 
 
 def price_history_problem(payload: dict[str, Any]) -> str | None:
-    """Say why a coffee's price history is not the series the contract describes.
+    """Say why a coffee's price histories violate the series contract.
 
     The schema checks each point's shape and the length cap. The schema cannot
     refuse a float spelling of a whole number, because JSON Schema's ``integer``
@@ -186,35 +186,42 @@ def price_history_problem(payload: dict[str, Any]) -> str | None:
 
     Args:
         payload: The decoded ``coffee.state`` body, with ``observed_at`` and
-            ``price_history`` as the schema shaped them.
+            ``price_history`` and ``pack_price_history`` as the schema shaped them.
 
     Returns:
         None when the series is well formed or absent. Otherwise one sentence
         naming the first fault found.
     """
-    series: list[dict[str, Any]] = payload.get("price_history", [])
-    for index, point in enumerate(series):
-        cents = point["price_per_kg_eur_cents"]
-        if cents is not None and type(cents) is not int:
-            return (
-                f"price_history[{index}] price_per_kg_eur_cents must be a whole number "
-                f"of cents, got {cents!r}"
-            )
-        price_minor = point.get("price_minor")
-        if price_minor is not None and type(price_minor) is not int:
-            return (
-                f"price_history[{index}] price_minor must be a whole number "
-                f"of minor units, got {price_minor!r}"
-            )
-    for before, after in itertools.pairwise(series):
-        if date.fromisoformat(after["on"]) <= date.fromisoformat(before["on"]):
-            return f"price_history is not in date order at {after['on']}"
-        if _same_price(before, after):
-            return f"price_history repeats {after['on']}: a point is a change, not a day"
-    if series:
-        last = date.fromisoformat(series[-1]["on"])
-        if last > datetime.fromisoformat(payload["observed_at"]).date():
-            return "price_history runs past observed_at"
+    histories: list[tuple[str, list[dict[str, Any]]]] = [
+        ("price_history", payload.get("price_history", []))
+    ]
+    histories.extend(
+        (f"pack_price_history[{index}]", series)
+        for index, series in enumerate(payload.get("pack_price_history", []))
+    )
+    for name, series in histories:
+        for index, point in enumerate(series):
+            cents = point["price_per_kg_eur_cents"]
+            if cents is not None and type(cents) is not int:
+                return (
+                    f"{name}[{index}] price_per_kg_eur_cents must be a whole number "
+                    f"of cents, got {cents!r}"
+                )
+            price_minor = point.get("price_minor")
+            if price_minor is not None and type(price_minor) is not int:
+                return (
+                    f"{name}[{index}] price_minor must be a whole number "
+                    f"of minor units, got {price_minor!r}"
+                )
+        for index, (before, after) in enumerate(itertools.pairwise(series), start=1):
+            if date.fromisoformat(after["on"]) <= date.fromisoformat(before["on"]):
+                return f"{name}[{index}] is not in date order at {after['on']}"
+            if _same_price(before, after):
+                return f"{name}[{index}] repeats {after['on']}: a point is a change, not a day"
+        if series:
+            last = date.fromisoformat(series[-1]["on"])
+            if last > datetime.fromisoformat(payload["observed_at"]).date():
+                return f"{name}[{len(series) - 1}] runs past observed_at"
     return None
 
 

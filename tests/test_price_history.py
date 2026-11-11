@@ -68,6 +68,34 @@ def test_a_price_history_survives_the_wire_with_its_types() -> None:
     assert first.price_per_kg_eur_cents == 2450
 
 
+def test_two_pack_histories_survive_the_wire_with_their_types() -> None:
+    packs = [
+        a_priced_series(),
+        [PricePoint(date(2026, 9, 1), 3800, True, 48000, "CZK", 500)],
+    ]
+    coffee = a_coffee(price_history=a_priced_series(), pack_price_history=packs)
+
+    check(json.loads(to_json(coffee)))
+    restored = coffee_from_json(to_json(coffee))
+
+    assert restored == coffee
+    assert restored.price_history == a_priced_series()
+    assert restored.pack_price_history == packs
+    for series in restored.pack_price_history:
+        assert type(series[0].on) is date
+        assert type(series[0].price_minor) is int
+        assert type(series[0].price_per_kg_eur_cents) is int
+
+
+def test_a_message_without_pack_price_history_reads_as_an_empty_list() -> None:
+    payload = json.loads(to_json(a_coffee(price_history=a_priced_series())))
+    payload.pop("pack_price_history", None)
+
+    check(payload)
+
+    assert coffee_from_json(json.dumps(payload)).pack_price_history == []
+
+
 def test_a_point_is_six_json_native_values() -> None:
     """Each point is written as a date string, two integers, a boolean, a string
     and an integer, with no text for the reader to parse. A field the producer
@@ -138,33 +166,48 @@ def test_the_schema_cap_is_the_exported_constant() -> None:
     assert cap == MAX_PRICE_HISTORY == 50
 
 
+@pytest.mark.parametrize("history", ["price_history", "pack_price_history"])
 @pytest.mark.parametrize(
-    "points",
+    ("points", "bad_index"),
     [
-        [
-            {"on": "2026-10-01", "price_per_kg_eur_cents": 2450, "available": True},
-            {"on": "2026-09-01", "price_per_kg_eur_cents": 2600, "available": True},
-        ],
-        [
-            {"on": "2026-09-01", "price_per_kg_eur_cents": 2450, "available": True},
-            {"on": "2026-09-01", "price_per_kg_eur_cents": 2600, "available": True},
-        ],
-        [
-            {"on": "2026-09-01", "price_per_kg_eur_cents": 2450, "available": True},
-            {"on": "2026-09-05", "price_per_kg_eur_cents": 2450, "available": True},
-        ],
-        [{"on": "2026-10-03", "price_per_kg_eur_cents": 2450, "available": True}],
+        (
+            [
+                {"on": "2026-10-01", "price_per_kg_eur_cents": 2450, "available": True},
+                {"on": "2026-09-01", "price_per_kg_eur_cents": 2600, "available": True},
+            ],
+            1,
+        ),
+        (
+            [
+                {"on": "2026-09-01", "price_per_kg_eur_cents": 2450, "available": True},
+                {"on": "2026-09-01", "price_per_kg_eur_cents": 2600, "available": True},
+            ],
+            1,
+        ),
+        (
+            [
+                {"on": "2026-09-01", "price_per_kg_eur_cents": 2450, "available": True},
+                {"on": "2026-09-05", "price_per_kg_eur_cents": 2450, "available": True},
+            ],
+            1,
+        ),
+        ([{"on": "2026-10-03", "price_per_kg_eur_cents": 2450, "available": True}], 0),
     ],
     ids=["out of order", "same date twice", "repeated price", "after observed_at"],
 )
-def test_a_malformed_series_is_refused(points: list[dict[str, object]]) -> None:
+def test_a_malformed_series_is_refused(
+    history: str, points: list[dict[str, object]], bad_index: int
+) -> None:
     payload = json.loads(to_json(a_coffee()))
-    payload["price_history"] = points
+    payload[history] = points if history == "price_history" else [[], points]
 
-    with pytest.raises(ContractError):
+    with pytest.raises(ContractError) as error:
         check(payload)
+    if history == "pack_price_history":
+        assert f"pack_price_history[1][{bad_index}]" in str(error.value)
 
 
+@pytest.mark.parametrize("history", ["price_history", "pack_price_history"])
 @pytest.mark.parametrize(
     "point",
     [
@@ -176,14 +219,38 @@ def test_a_malformed_series_is_refused(points: list[dict[str, object]]) -> None:
         {"on": "2026-09-01", "price_per_kg_eur_cents": 2450},
     ],
 )
-def test_a_malformed_point_is_refused(point: dict[str, object]) -> None:
+def test_a_malformed_point_is_refused(history: str, point: dict[str, object]) -> None:
     """Each point's shape is the schema's business: a bad date, a string where
     the integer belongs, a wrong availability, or a missing key."""
     payload = json.loads(to_json(a_coffee()))
-    payload["price_history"] = [point]
+    payload[history] = [point] if history == "price_history" else [[], [point]]
 
     with pytest.raises(ContractError):
         check(payload)
+
+
+@pytest.mark.parametrize("field", ["price_minor", "price_per_kg_eur_cents"])
+def test_pack_history_money_must_be_whole_numbers(field: str) -> None:
+    payload = json.loads(to_json(a_coffee(price_history=a_priced_series())))
+    payload["pack_price_history"] = [[], [dict(payload["price_history"][0])]]
+    payload["pack_price_history"][1][0][field] = 2450.0
+
+    with pytest.raises(ContractError, match=r"pack_price_history\[1\]\[0\]"):
+        check(payload)
+    with pytest.raises(ValueError, match="whole number"):
+        coffee_from_json(json.dumps(payload))
+
+
+@pytest.mark.parametrize(("packs", "points"), [(12, 50), (13, 1), (2, 51)])
+def test_pack_history_caps(packs: int, points: int) -> None:
+    payload = json.loads(to_json(a_coffee(price_history=a_long_series(points))))
+    payload["pack_price_history"] = [payload.pop("price_history")] * packs
+
+    if packs <= 12 and points <= MAX_PRICE_HISTORY:
+        check(payload)
+    else:
+        with pytest.raises(ContractError, match="is too long"):
+            check(payload)
 
 
 def test_a_float_spelling_of_cents_inside_a_point_is_refused_by_check() -> None:

@@ -7,6 +7,21 @@ The version here is the *distribution's*. The wire version lives in `VERSION`
 in `subjects.py` and moves only when a subject changes — it was `v1`
 until 3.0.0 and is `v2` from there.
 
+## 3.4.0 (2026-11-10)
+
+Wire version `v2`, unchanged. `coffee.state` gains optional `pack_price_history`
+(#734): one series per pack the shop currently offers within a listing, empty
+when fewer than two packs are offered. At most 12 series, each with the newest
+50 change points, oldest first; the last point holds until `observed_at`.
+Each series follows `price_history`'s change rule and carries only prices the
+shop offered for that pack, never prices inferred from another pack.
+
+`price_history` still describes the pack in `price_minor` and `weight_g`.
+`check` applies the same money, date-order and change-point checks to each
+series, naming the pack and point indices on failure. Consumers that do not
+read the new field have nothing to do; messages without it still validate and
+decode to an empty list.
+
 ## 3.3.0 (2026-10-22)
 
 **This release is the untagged `3.2.1`, `3.2.2`, `3.2.3` and `3.2.4` below, read
